@@ -28,7 +28,7 @@ export const useWalletActions = ({
       //@ts-ignore
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: 8453 }],
+        params: [{ chainId: 0x2105 }],
       });
       setIsWrongNetwork?.(false);
       setModalState(null);
@@ -40,7 +40,7 @@ export const useWalletActions = ({
             method: "wallet_addEthereumChain",
             params: [
               {
-                chainId: 8453,
+                chainId: 0x2105,
                 chainName: "Base",
                 nativeCurrency: {
                   name: "ETH",
