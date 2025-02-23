@@ -28,7 +28,7 @@ export const useWalletActions = ({
       //@ts-ignore
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x14a34" }],
+        params: [{ chainId: 8453 }],
       });
       setIsWrongNetwork?.(false);
       setModalState(null);
@@ -40,15 +40,15 @@ export const useWalletActions = ({
             method: "wallet_addEthereumChain",
             params: [
               {
-                chainId: "0x14a34",
-                chainName: "Base Sepolia",
+                chainId: 8453,
+                chainName: "Base",
                 nativeCurrency: {
                   name: "ETH",
                   symbol: "ETH",
                   decimals: 18,
                 },
-                rpcUrls: ["https://sepolia.base.org"],
-                blockExplorerUrls: ["https://sepolia.basescan.org"],
+                rpcUrls: ["https://mainnet.base.org"],
+                blockExplorerUrls: ["https://mainnet.basescan.org"],
               },
             ],
           });
