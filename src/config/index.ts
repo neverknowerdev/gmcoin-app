@@ -10,7 +10,7 @@ export const TOKEN_URL= process.env.NEXT_PUBLIC_TOKEN_URL || "";
 
 export const CHAINS = [
   {
-    id: "0x2105",
+    id: 8453,
     token: "ETH",
     label: "Base",
     rpcUrl: "https://mainnet.base.org",
