@@ -25,8 +25,8 @@ export const useWalletActions = ({
 
   const handleSwitchNetwork = useCallback(async () => {
     try {
-      //@ts-ignore
       console.log('window.ethereum.request');
+      //@ts-ignore
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: '0x2105' }],
