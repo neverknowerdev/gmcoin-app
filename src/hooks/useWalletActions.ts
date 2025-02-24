@@ -21,18 +21,21 @@ export const useWalletActions = ({
   setUser,
   setIsWrongNetwork,
 }: WalletActionsParams) => {
-  const { disconnect } = useWeb3();
+  const { disconnect, connectedChain, getProvider } = useWeb3();
 
   const handleSwitchNetwork = useCallback(async () => {
     try {
       //@ts-ignore
+      console.log('window.ethereum.request');
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: 0x2105 }],
+        params: [{ chainId: '0x2105' }],
       });
+      console.log('window.ethereum.request after');
       setIsWrongNetwork?.(false);
       setModalState(null);
     } catch (switchError: any) {
+      console.log('switchError', switchError);
       if (switchError.code === 4902) {
         try {
           //@ts-ignore

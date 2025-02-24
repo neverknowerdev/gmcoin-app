@@ -7,6 +7,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
+import {useConnectWallet} from "@web3-onboard/react";
 interface SendContractProps {
   connectedWallet: { accounts: { address: string }[] } | null;
   sendTransaction: () => Promise<void>;
@@ -52,6 +53,7 @@ const SendContract: React.FC<SendContractProps> = ({
     setIsWrongNetwork,
     setUser,
   });
+
   const handleReconnectWalletClick = () => reconnectWallet(setWalletAdd);
   const handleReconnectTwitterClick = () => reconnectTwitter();
   useEffect(() => {
@@ -117,6 +119,7 @@ const SendContract: React.FC<SendContractProps> = ({
   const handleSendTransaction = async () => {
     if (!isFormValid) return;
 
+    console.log('wallet', wallet);
     if (!connectedWallet) {
       console.log("Wallet not connected. Trying to connect...");
       await connect();
@@ -126,6 +129,8 @@ const SendContract: React.FC<SendContractProps> = ({
       //@ts-ignore
       const provider = getProvider();
       const network = await provider.getNetwork();
+
+      console.log('sendTransaction', provider, network);
 
       if (network.chainId.toString() !== "8453") {
         setIsWrongNetwork(true);
