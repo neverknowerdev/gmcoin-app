@@ -299,7 +299,7 @@ const SendContract: React.FC<SendContractProps> = ({
               <img src="/sun.png" alt="Sun" className={styles.goodEmoji} />
               <a
                 className={styles.twittButton}
-                href="https://twitter.com/intent/tweet?text=Now%20I%20can%20get%20%24GM%20from%20%40GM%20-%20awesome!%20%F0%9F%8C%80"
+                href="https://x.com/intent/tweet?text=Now%20I%20can%20get%20%24GM%20from%20%40GM%20-%20awesome!%20%F0%9F%8C%80"
                 target="_blank"
                 rel="noopener noreferrer"
               >

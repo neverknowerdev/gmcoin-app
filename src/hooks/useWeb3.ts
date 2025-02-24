@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 // import init from '@web3-onboard/core';
-import { init, useSetChain } from "@web3-onboard/react";
+import { init, useSetChain, useWallets } from "@web3-onboard/react";
 
 import injectedModule from '@web3-onboard/injected-wallets';
 import metamaskSDK from '@web3-onboard/metamask';
@@ -11,14 +11,17 @@ import { AmbireLoginSDK } from '@ambire/login-sdk-core'
 import type { WalletState, Chain } from '@/src/types';
 import { CHAINS } from '@/src/config';
 import { ethers } from 'ethers';
+import {OnboardAPI} from "@web3-onboard/core";
+
 
 export const useWeb3 = () => {
-  const [web3Onboard, setWeb3Onboard] = useState<any>(null);
+  const [web3Onboard, setWeb3Onboard] = useState<OnboardAPI>(null);
   const [connectedWallet, setConnectedWallet] = useState<WalletState | null>(null);
   const [connectedChain, setConnectedChain] = useState<Chain | null>(null);
+
   useEffect(() => {
     if (!web3Onboard) return;
- 
+
     const walletsSub = web3Onboard.state.select('wallets').subscribe((wallets:any) => {
       if (wallets && wallets.length > 0) {
         setConnectedWallet(wallets[0]);
@@ -26,7 +29,6 @@ export const useWeb3 = () => {
           setConnectedChain(wallets[0].chains[0]);
         }
       } else {
-  
         setConnectedWallet(null);
         setConnectedChain(null);
       }
@@ -106,8 +108,8 @@ export const useWeb3 = () => {
 
     try {
       const wallets = await web3Onboard.connectWallet();
-      await web3Onboard.connectWallet();
-      if (wallets[0]) {
+      await web3Onboard.setChain({chainId: '0x2105'});
+      if(wallets.length > 0) {
         setConnectedWallet(wallets[0]);
         await web3Onboard.connectWallet();
         if (wallets[0].chains && wallets[0].chains.length > 0) {
@@ -131,7 +133,7 @@ export const useWeb3 = () => {
         dappIconPath: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
       });
 
-      ambireLoginSDK.openLogin();
+      ambireLoginSDK.openLogin({chainId: 8453});
       console.log("Ambire Wallet created successfully!");
     } catch (error) {
       console.error("Error creating Ambire Wallet:", error);

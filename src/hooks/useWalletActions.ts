@@ -19,7 +19,7 @@ export const useWalletActions = ({
   setErrorMessage,
   setTwitterName,
   setUser,
-  setIsWrongNetwork
+  setIsWrongNetwork,
 }: WalletActionsParams) => {
   const { disconnect } = useWeb3();
 
@@ -40,7 +40,7 @@ export const useWalletActions = ({
             method: "wallet_addEthereumChain",
             params: [
               {
-                chainId: 0x2105,
+                chainId: '0x2105',
                 chainName: "Base",
                 nativeCurrency: {
                   name: "ETH",
@@ -93,7 +93,7 @@ export const useWalletActions = ({
       const redirectUri = encodeURIComponent(
         window.location.origin + window.location.pathname
       );
-      const twitterAuthUrl = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${TWITTER_CLIENT_ID}&redirect_uri=${redirectUri}&scope=users.read%20tweet.read&state=state123&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+      const twitterAuthUrl = `https://x.com/i/oauth2/authorize?response_type=code&client_id=${TWITTER_CLIENT_ID}&redirect_uri=${redirectUri}&scope=users.read%20tweet.read&state=state123&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
       window.location.href = twitterAuthUrl;
     } catch (error) {
