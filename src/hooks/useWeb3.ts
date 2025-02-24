@@ -63,7 +63,14 @@ export const useWeb3 = () => {
         showSidebar: true,
         autoConnectLastWallet: true,
       },
-      chains: CHAINS,
+      chains: [
+        {
+          id: '0x2105',
+          token: 'ETH',
+          label: 'Base',
+          rpcUrl: 'https://mainnet.base.org',
+        }
+      ],
       appMetadata: {
         name: 'GM',
         icon: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
