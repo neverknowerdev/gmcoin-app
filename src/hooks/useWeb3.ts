@@ -8,14 +8,13 @@ import metamaskSDK from '@web3-onboard/metamask';
 import phantomModule from '@web3-onboard/phantom';
 import { AmbireWalletModule } from '@ambire/login-sdk-web3-onboard';
 import { AmbireLoginSDK } from '@ambire/login-sdk-core'
-import type { WalletState, Chain } from '@/src/types';
 import { CHAINS } from '@/src/config';
 import { ethers } from 'ethers';
-import {OnboardAPI} from "@web3-onboard/core";
+import {Chain, OnboardAPI, WalletState} from "@web3-onboard/core";
 
 
 export const useWeb3 = () => {
-  const [web3Onboard, setWeb3Onboard] = useState<OnboardAPI>(null);
+  const [web3Onboard, setWeb3Onboard] = useState<OnboardAPI|null>(null);
   const [connectedWallet, setConnectedWallet] = useState<WalletState | null>(null);
   const [connectedChain, setConnectedChain] = useState<Chain | null>(null);
 
@@ -143,9 +142,11 @@ export const useWeb3 = () => {
     if (!web3Onboard || !connectedWallet) return;
   
     try {
-      await web3Onboard.disconnectWallet({ label: connectedWallet.label });
-      setConnectedWallet(null);
-      setConnectedChain(null);
+      if(connectedWallet) {
+        await web3Onboard.disconnectWallet(connectedWallet);
+        setConnectedWallet(null);
+        setConnectedChain(null);
+      }
     } catch (error) {
       console.error('Error disconnecting wallet:', error);
     }
