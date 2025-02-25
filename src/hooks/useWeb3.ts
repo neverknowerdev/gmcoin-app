@@ -22,6 +22,7 @@ export const useWeb3 = () => {
     if (!web3Onboard) return;
 
     const walletsSub = web3Onboard.state.select('wallets').subscribe((wallets:any) => {
+      console.log('walletsSub', wallets.length, wallets);
       if (wallets && wallets.length > 0) {
         setConnectedWallet(wallets[0]);
         if (wallets[0].chains && wallets[0].chains.length > 0) {
@@ -92,10 +93,13 @@ export const useWeb3 = () => {
     setWeb3Onboard(onboard);
   }, []);
   const getProvider = () => {
-    if (!connectedWallet?.provider) {
-      throw new Error('No wallet connected');
-    }
-    return new ethers.BrowserProvider(connectedWallet.provider);
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    console.log('provider', provider);
+    return provider;
+    // if (!connectedWallet?.provider) {
+    //   throw new Error('No wallet connected');
+    // }
+    // return new ethers.BrowserProvider(connectedWallet.provider);
   };
 
   const getSigner = async () => {
@@ -108,7 +112,11 @@ export const useWeb3 = () => {
     try {
       const wallets = await web3Onboard.connectWallet();
       console.log('wallets', wallets.length, wallets);
-      await web3Onboard.setChain({chainId: '0x2105'});
+      // await web3Onboard.setChain({chainId: '0x2105'});
+      await switchToBase();
+      // const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      // console.log('Connected account:', accounts.length, accounts);
+
       if(wallets.length > 0) {
         setConnectedWallet(wallets[0]);
         await web3Onboard.connectWallet();
@@ -117,6 +125,7 @@ export const useWeb3 = () => {
         }
 
         web3Onboard.state.select('chains').subscribe((chains: Chain[]) => {
+          console.log('chains sub', chains.length, chains);
           if (chains && chains.length > 0) {
             setConnectedChain(chains[0]);
           }
@@ -163,3 +172,58 @@ export const useWeb3 = () => {
     getSigner
   };
 };
+
+async function switchToBase() {
+  console.log('switchToBase..');
+  const baseChainId = '0x2105'; // Chain ID for Base Mainnet (8453 in hex)
+
+  try {
+    // Check the current chain ID
+    const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+    console.log('currentChainId', currentChainId);
+
+    if (currentChainId !== baseChainId) {
+      // Attempt to switch to Base network
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: baseChainId }],
+      });
+    }
+
+    console.log('Connected to Base network');
+  } catch (switchError) {
+    // If Base isn’t added, add it first
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [
+            {
+              chainId: baseChainId,
+              chainName: 'Base Mainnet',
+              nativeCurrency: {
+                name: 'Base',
+                symbol: 'ETH',
+                decimals: 18,
+              },
+              rpcUrls: ['https://mainnet.base.org'],
+              blockExplorerUrls: ['https://basescan.org'],
+            },
+          ],
+        });
+
+        // After adding, switch to Base
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: baseChainId }],
+        });
+
+        console.log('Base network added and switched');
+      } catch (addError) {
+        console.error('Failed to add Base network:', addError);
+      }
+    } else {
+      console.error('Failed to switch to Base network:', switchError);
+    }
+  }
+}
