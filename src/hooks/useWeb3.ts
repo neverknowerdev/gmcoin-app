@@ -93,13 +93,13 @@ export const useWeb3 = () => {
     setWeb3Onboard(onboard);
   }, []);
   const getProvider = () => {
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    console.log('provider', provider);
-    return provider;
-    // if (!connectedWallet?.provider) {
-    //   throw new Error('No wallet connected');
-    // }
-    // return new ethers.BrowserProvider(connectedWallet.provider);
+    // const provider = new ethers.BrowserProvider(window.ethereum);
+    // console.log('provider', provider);
+    // return provider;
+    if (!connectedWallet?.provider) {
+      throw new Error('No wallet connected');
+    }
+    return new ethers.BrowserProvider(connectedWallet.provider, 8453);
   };
 
   const getSigner = async () => {
@@ -177,25 +177,30 @@ async function switchToBase() {
   console.log('switchToBase..');
   const baseChainId = '0x2105'; // Chain ID for Base Mainnet (8453 in hex)
 
+  const windowEthereum = window.ethereum;
+  if(!windowEthereum) {
+    return;
+  }
+
   try {
     // Check the current chain ID
-    const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+    const currentChainId = await windowEthereum.request({ method: 'eth_chainId' });
     console.log('currentChainId', currentChainId);
 
     if (currentChainId !== baseChainId) {
       // Attempt to switch to Base network
-      await window.ethereum.request({
+      await windowEthereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: baseChainId }],
       });
     }
 
     console.log('Connected to Base network');
-  } catch (switchError) {
+  } catch (switchError: any) {
     // If Base isn’t added, add it first
-    if (switchError.code === 4902) {
+    if (switchError.code && switchError.code === 4902) {
       try {
-        await window.ethereum.request({
+        await windowEthereum.request({
           method: 'wallet_addEthereumChain',
           params: [
             {
@@ -213,7 +218,7 @@ async function switchToBase() {
         });
 
         // After adding, switch to Base
-        await window.ethereum.request({
+        await windowEthereum.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: baseChainId }],
         });
