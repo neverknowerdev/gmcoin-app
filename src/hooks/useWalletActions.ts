@@ -130,6 +130,7 @@ export const useWalletActions = ({
       }
 
       const data = await response.json();
+      console.log('received data', data);
       setTwitterName?.(data.username);
       localStorage.setItem("twitterName", data.username);
       localStorage.setItem('twitterUserId', data.user_id);
