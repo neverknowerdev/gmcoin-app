@@ -105,7 +105,7 @@ export const useWalletActions = ({
     }
   }, [setErrorMessage, setModalState, setUser]);
 
-  const handleFetchTwitterAccessToken = useCallback(async (code, user) => {
+  const handleFetchTwitterAccessToken = useCallback(async (code: string, user: string) => {
     console.log("Twitter token fetch attempt with:", {
       codePresent: !!code,
       verifierPresent: !!user,
