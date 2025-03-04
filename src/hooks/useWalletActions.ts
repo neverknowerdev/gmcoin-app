@@ -68,18 +68,18 @@ export const useWalletActions = ({
     }
   }, [setIsWrongNetwork, setModalState, setErrorMessage]);
 
-  const handleReconnectWallet = useCallback(async (setWalletAdd:any) => {
+  const handleReconnectWallet = useCallback(async (setWalletAdd: any) => {
     try {
-        await disconnect();
-        await connect();
-        const walletAddress = localStorage.getItem("walletAddress");
-        setWalletAdd(walletAddress || "");
-        setModalState(null);
-        return walletAddress;
-      } catch (error) {
-        setErrorMessage("Failed to reconnect wallet");
-        setModalState("error");
-      }
+      await disconnect();
+      await connect();
+      const walletAddress = localStorage.getItem("walletAddress");
+      setWalletAdd(walletAddress || "");
+      setModalState(null);
+      return walletAddress;
+    } catch (error) {
+      setErrorMessage("Failed to reconnect wallet");
+      setModalState("error");
+    }
   }, [disconnect, connect, setModalState, setErrorMessage]);
 
   const handleReconnectTwitter = useCallback(async () => {
@@ -105,17 +105,38 @@ export const useWalletActions = ({
     }
   }, [setErrorMessage, setModalState, setUser]);
 
-  const handleFetchTwitterAccessToken = useCallback(async (code: string, user: string) => {
+  const handleFetchTwitterAccessToken = useCallback(async (code, user) => {
+    console.log("Twitter token fetch attempt with:", {
+      codePresent: !!code,
+      verifierPresent: !!user,
+      codeLength: code?.length,
+      verifierLength: user?.length
+    });
+
+    if (!code || !user) {
+      console.log("Missing code or verifier, skipping Twitter token fetch");
+      return;
+    }
+
+    // Check if we already have a token in session storage
+    if (sessionStorage.getItem('accessToken')) {
+      console.log("Twitter token already exists, skipping fetch");
+      return;
+    }
+
     const url = TOKEN_URL;
     if (!url) {
       console.error("❌ TWITTER_ACCESS_TOKEN_URL is not defined in .env.local!");
       return;
     }
+
     try {
       const requestBody = {
         authCode: code,
         verifier: user,
       };
+
+      console.log("Sending request to Twitter token endpoint");
 
       const response = await fetch(url, {
         method: "POST",
@@ -126,11 +147,26 @@ export const useWalletActions = ({
       });
 
       if (!response.ok) {
+        // Try to get more details about the error
+        let errorDetail;
+        try {
+          const errorResponse = await response.json();
+          errorDetail = JSON.stringify(errorResponse);
+
+          // If it's an invalid code error, we should inform the user
+          if (errorResponse?.error?.error === "invalid_request") {
+            throw new Error("Twitter authentication code has expired. Please reconnect your Twitter account.");
+          }
+        } catch (e) {
+          errorDetail = await response.text();
+        }
+
+        console.error(`Twitter API error (${response.status}):`, errorDetail);
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('received data', data);
+      console.log('Twitter API success, received username:', data.username);
       setTwitterName?.(data.username);
       localStorage.setItem("twitterName", data.username);
       localStorage.setItem('twitterUserId', data.user_id);
@@ -141,6 +177,7 @@ export const useWalletActions = ({
       return data.username;
     } catch (error) {
       console.error("❌ Error fetching Twitter access token:", error);
+      throw error; // Re-throw so the calling code can handle it
     }
   }, [setTwitterName]);
 

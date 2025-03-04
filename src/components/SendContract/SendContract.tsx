@@ -7,7 +7,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
-import {useConnectWallet} from "@web3-onboard/react";
+import { useConnectWallet } from "@web3-onboard/react";
 interface SendContractProps {
   connectedWallet: { accounts: { address: string }[] } | null;
   sendTransaction: () => Promise<void>;
@@ -108,14 +108,42 @@ const SendContract: React.FC<SendContractProps> = ({
     return twitterName;
   };
 
+  // Replace the useEffect that handles Twitter authentication with this fixed version
   useEffect(() => {
-    fetchTwitterAccessToken(code, verifier);
-    setCode('');
-    setVerifier('');
+    // Skip token fetch if we already have a Twitter username or missing credentials
+    const twitterNameExists = !!twitterName;
+    const accessTokenExists = !!sessionStorage.getItem('accessToken');
 
-    sessionStorage.removeItem('verifier');
-    sessionStorage.removeItem('code');
-  }, []);
+    if ((twitterNameExists || accessTokenExists) || !code || !verifier) {
+      return;
+    }
+
+    console.log("Starting Twitter token fetch with fresh code...");
+
+    fetchTwitterAccessToken(code, verifier)
+      .then(() => {
+        // Clear code and verifier only after successful processing
+        console.log("Twitter auth successful, clearing credentials");
+        setCode('');
+        setVerifier('');
+        sessionStorage.removeItem('verifier');
+        sessionStorage.removeItem('code');
+      })
+      .catch(error => {
+        console.error("Failed to fetch Twitter token:", error);
+
+        // If we got an invalid code error, we should also clear the code
+        // to prevent repeated failed attempts
+        if (error.message && error.message.includes("500")) {
+          console.log("Clearing invalid Twitter auth code");
+          setCode('');
+          setVerifier('');
+          sessionStorage.removeItem('verifier');
+          sessionStorage.removeItem('code');
+        }
+      });
+  }, [code, verifier, fetchTwitterAccessToken, twitterName]);
+
   const handleSendTransaction = async () => {
     if (!isFormValid) return;
 

@@ -121,8 +121,8 @@ export default function Home() {
       const balance = await browserProvider.getBalance(address);
       console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
 
-      const estimatedGas =
-        await contract.requestTwitterVerification.estimateGas(
+      const estimatedGas = //@audit issue here previously it was working, but when i changed the contract address, it stopped working
+      await contract.requestTwitterVerification.estimateGas(
           encryptedAccessToken,
           twitterUserId
         );
