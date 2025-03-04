@@ -28,6 +28,7 @@ export default function Home() {
     "idle" | "pending" | "success" | "error"
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isTwitterDataLoading, setIsTwitterDataLoading] = useState(true);
   const {
     connectedWallet,
     connect,
@@ -61,14 +62,19 @@ export default function Home() {
         sessionStorage.setItem("code", authorizationCode);
         const newUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
-        setCurrentStep(2);
+
+        // Set current step but keep loading state true until Twitter data is loaded
         if (connectedWallet) {
           setCurrentStep(2);
+          // Keep isTwitterLoading true if we have an auth code
+          setIsTwitterDataLoading(true);
         }
       } else {
         const storedCode = sessionStorage.getItem("code");
         if (storedCode) {
           setIsTwitterConnected(true);
+        } else {
+          setIsTwitterDataLoading(false);
         }
       }
       setIsTwitterLoading(false);
@@ -121,7 +127,7 @@ export default function Home() {
       const balance = await browserProvider.getBalance(address);
       console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
 
-      const estimatedGas =
+      const estimatedGas = //@audit issue here previously it was working, but when i changed the contract address, it stopped working
         await contract.requestTwitterVerification.estimateGas(
           encryptedAccessToken,
           twitterUserId
@@ -136,8 +142,8 @@ export default function Home() {
       if (balance > totalGasCost * 2n) {
         console.log("🔹 Sending contract transaction...");
         const tx = await contract.requestTwitterVerification(
-            encryptedAccessToken,
-            twitterUserId
+          encryptedAccessToken,
+          twitterUserId
         );
         transactionPromise = tx.wait();
       } else {
@@ -194,7 +200,7 @@ export default function Home() {
           clearTimeout(timeout);
           cleanup();
 
-          if(isSuccess) {
+          if (isSuccess) {
             console.log("✅Twitter connected event received!");
             resolve("success");
           } else {
@@ -241,16 +247,6 @@ export default function Home() {
     }
   };
 
-  if (isTwitterLoading) {
-    return (
-      <main className="min-h-screen bg-white flex items-center justify-center">
-        <div className={styles.loaderContainer}>
-          <SunLoader />
-        </div>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-white">
       <ProgressNavigation
@@ -262,27 +258,38 @@ export default function Home() {
         <div className="p-4">Authorized!</div>
       ) : (
         <div>
-          {currentStep === 0 && (
-            <ConnectWallet
-              onConnect={connect}
-              createAmbireWallet={createAmbireWallet}
-            />
-          )}
+          {(isTwitterLoading || isTwitterDataLoading) ? (
+            <main className="min-h-screen bg-white flex items-center justify-center">
+              <div className={styles.loaderContainer}>
+                <SunLoader />
+              </div>
+            </main>
+          ) : (
+            <>
+              {currentStep === 0 && (
+                <ConnectWallet
+                  onConnect={connect}
+                  createAmbireWallet={createAmbireWallet}
+                />
+              )}
 
-          {currentStep === 1 && connectedWallet && (
-            <TwitterConnect
-              onConnectClick={openTwitterAuthPopup}
-              isConnecting={false}
-            />
-          )}
+              {currentStep === 1 && connectedWallet && (
+                <TwitterConnect
+                  onConnectClick={openTwitterAuthPopup}
+                  isConnecting={false}
+                />
+              )}
 
-          {isTwitterConnected && currentStep === 2 && (
-            <SendContract
-              connectedWallet={connectedWallet}
-              walletAddress={connectedWallet?.accounts[0]?.address || ""}
-              sendTransaction={sendTransaction}
-              connect={connect}
-            />
+              {isTwitterConnected && currentStep === 2 && (
+                <SendContract
+                  connectedWallet={connectedWallet}
+                  walletAddress={connectedWallet?.accounts[0]?.address || ""}
+                  sendTransaction={sendTransaction}
+                  connect={connect}
+                  onTwitterDataLoaded={() => setIsTwitterDataLoading(false)}
+                />
+              )}
+            </>
           )}
         </div>
       )}

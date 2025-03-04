@@ -68,18 +68,18 @@ export const useWalletActions = ({
     }
   }, [setIsWrongNetwork, setModalState, setErrorMessage]);
 
-  const handleReconnectWallet = useCallback(async (setWalletAdd:any) => {
+  const handleReconnectWallet = useCallback(async (setWalletAdd: any) => {
     try {
-        await disconnect();
-        await connect();
-        const walletAddress = localStorage.getItem("walletAddress");
-        setWalletAdd(walletAddress || "");
-        setModalState(null);
-        return walletAddress;
-      } catch (error) {
-        setErrorMessage("Failed to reconnect wallet");
-        setModalState("error");
-      }
+      await disconnect();
+      await connect();
+      const walletAddress = localStorage.getItem("walletAddress");
+      setWalletAdd(walletAddress || "");
+      setModalState(null);
+      return walletAddress;
+    } catch (error) {
+      setErrorMessage("Failed to reconnect wallet");
+      setModalState("error");
+    }
   }, [disconnect, connect, setModalState, setErrorMessage]);
 
   const handleReconnectTwitter = useCallback(async () => {
@@ -105,10 +105,11 @@ export const useWalletActions = ({
     }
   }, [setErrorMessage, setModalState, setUser]);
 
-  const handleFetchTwitterAccessToken = useCallback(async (code: string, user: string) => {
+  const handleFetchTwitterAccessToken = useCallback(async (code: string, user: string, onComplete?: () => void) => {
     const url = TOKEN_URL;
     if (!url) {
       console.error("❌ TWITTER_ACCESS_TOKEN_URL is not defined in .env.local!");
+      if (onComplete) onComplete(); // Call completion even on error
       return;
     }
     try {
@@ -138,9 +139,14 @@ export const useWalletActions = ({
       sessionStorage.setItem('encryptedAccessToken', data.encrypted_access_token);
       sessionStorage.setItem('accessToken', data.access_token);
 
+      // Signal completion after setting the username
+      if (onComplete) onComplete();
+
       return data.username;
     } catch (error) {
       console.error("❌ Error fetching Twitter access token:", error);
+      // Call completion even on error to prevent loader from hanging indefinitely
+      if (onComplete) onComplete();
     }
   }, [setTwitterName]);
 

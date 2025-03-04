@@ -7,12 +7,15 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
-import {useConnectWallet} from "@web3-onboard/react";
+import { useConnectWallet } from "@web3-onboard/react";
+
+// Update the interface to include the onTwitterDataLoaded prop
 interface SendContractProps {
   connectedWallet: { accounts: { address: string }[] } | null;
   sendTransaction: () => Promise<void>;
   walletAddress: string;
   connect: () => Promise<void>;
+  onTwitterDataLoaded?: () => void; // Add this prop
 }
 
 const SendContract: React.FC<SendContractProps> = ({
@@ -20,6 +23,7 @@ const SendContract: React.FC<SendContractProps> = ({
   walletAddress,
   sendTransaction,
   connect,
+  onTwitterDataLoaded, // Add this prop
 }) => {
   const [wallet, setWallet] = useState(walletAddress);
   const [walletAdd, setWalletAdd] = useState(walletAddress);
@@ -108,14 +112,25 @@ const SendContract: React.FC<SendContractProps> = ({
     return twitterName;
   };
 
+  // Replace the existing useEffect that calls fetchTwitterAccessToken with this:
   useEffect(() => {
-    fetchTwitterAccessToken(code, verifier);
-    setCode('');
-    setVerifier('');
+    if (code && verifier) {
+      // When we have a code and verifier, fetch the Twitter data
+      fetchTwitterAccessToken(code, verifier, onTwitterDataLoaded);
+      setCode('');
+      setVerifier('');
+      sessionStorage.removeItem('verifier');
+      sessionStorage.removeItem('code');
+    } else {
+      // If we already have Twitter data or we won't fetch it, signal completion
+      // This ensures the loader doesn't hang when there's nothing to fetch
+      if (onTwitterDataLoaded) {
+        // Small delay to allow potential state updates to complete
+        setTimeout(onTwitterDataLoaded, 100);
+      }
+    }
+  }, [code, verifier, fetchTwitterAccessToken, onTwitterDataLoaded]);
 
-    sessionStorage.removeItem('verifier');
-    sessionStorage.removeItem('code');
-  }, []);
   const handleSendTransaction = async () => {
     if (!isFormValid) return;
 
