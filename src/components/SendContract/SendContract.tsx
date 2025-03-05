@@ -7,7 +7,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
-import {useConnectWallet} from "@web3-onboard/react";
+import { useConnectWallet } from "@web3-onboard/react";
 interface SendContractProps {
   connectedWallet: { accounts: { address: string }[] } | null;
   sendTransaction: () => Promise<void>;
@@ -38,6 +38,7 @@ const SendContract: React.FC<SendContractProps> = ({
     () => sessionStorage.getItem("verifier") || ""
   );
   const [code, setCode] = useState(() => sessionStorage.getItem("code") || "");
+  const [isTwitterLoading, setIsTwitterLoading] = useState(false);
   const router = useRouter();
   const {
     switchNetwork,
@@ -109,13 +110,44 @@ const SendContract: React.FC<SendContractProps> = ({
   };
 
   useEffect(() => {
-    fetchTwitterAccessToken(code, verifier);
-    setCode('');
-    setVerifier('');
+    // Skip token fetch if we already have a Twitter username or missing credentials
+    const twitterNameExists = !!twitterName;
+    const accessTokenExists = !!sessionStorage.getItem('accessToken');
 
-    sessionStorage.removeItem('verifier');
-    sessionStorage.removeItem('code');
-  }, []);
+    if ((twitterNameExists || accessTokenExists) || !code || !verifier) {
+      return;
+    }
+
+    console.log("Starting Twitter token fetch with fresh code...");
+    setIsTwitterLoading(true);
+
+    fetchTwitterAccessToken(code, verifier)
+      .then(() => {
+        // Clear code and verifier only after successful processing
+        console.log("Twitter auth successful, clearing credentials");
+        setCode('');
+        setVerifier('');
+        sessionStorage.removeItem('verifier');
+        sessionStorage.removeItem('code');
+      })
+      .catch(error => {
+        console.error("Failed to fetch Twitter token:", error);
+
+        // If we got an invalid code error, we should also clear the code
+        // to prevent repeated failed attempts
+        if (error.message && error.message.includes("500")) {
+          console.log("Clearing invalid Twitter auth code");
+          setCode('');
+          setVerifier('');
+          sessionStorage.removeItem('verifier');
+          sessionStorage.removeItem('code');
+        }
+      })
+      .finally(() => {
+        setIsTwitterLoading(false);
+      });
+  }, [code, verifier, fetchTwitterAccessToken, twitterName]);
+
   const handleSendTransaction = async () => {
     if (!isFormValid) return;
 
@@ -187,18 +219,31 @@ const SendContract: React.FC<SendContractProps> = ({
         <div className={styles.inputGroup}>
           <input
             type="text"
-            placeholder="Enter Wallet..."
-            value={formatTwitter(twitterName)}
-            onChange={(e) => setVerifier(e.target.value)}
+            placeholder="Enter Twitter..."
+            value={isTwitterLoading ? "Loading..." : formatTwitter(twitterName)}
             className={styles.input}
-            readOnly={!!connectedWallet}
+            readOnly={true}
           />
-          <button
-            className={styles.reconnectButton}
-            onClick={handleReconnectTwitterClick}
-          >
-            <RefreshCw size={20} className={styles.reconnectIcon} /> reconnect
-          </button>
+          {isTwitterLoading ? (
+            <div className={styles.loadingContainer}>
+              <div className={styles.loadingText}>
+                <span>L</span>
+                <span>O</span>
+                <span>A</span>
+                <span>D</span>
+                <span>I</span>
+                <span>N</span>
+                <span>G</span>
+              </div>
+            </div>
+          ) : (
+            <button
+              className={styles.reconnectButton}
+              onClick={handleReconnectTwitterClick}
+            >
+              <RefreshCw size={20} className={styles.reconnectIcon} /> reconnect
+            </button>
+          )}
         </div>
 
         <div className={styles.buttonContainer}>
