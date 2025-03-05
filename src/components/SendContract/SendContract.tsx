@@ -164,7 +164,7 @@ const SendContract: React.FC<SendContractProps> = ({
 
       console.log('sendTransaction', provider, network);
 
-      if (network.chainId.toString() !== "8453") {
+      if (network.chainId.toString() !== "84532") {
         setIsWrongNetwork(true);
         setErrorMessage("Please switch to Base network");
         setModalState("wrongNetwork");
