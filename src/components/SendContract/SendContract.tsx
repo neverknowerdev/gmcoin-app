@@ -205,75 +205,73 @@ const SendContract: React.FC<SendContractProps> = ({
           </div>
         </div>
       )}
-      <div className={isTwitterLoading ? styles.blurContent : ''}>
-        <div className={styles.rainbow}>
-          <img src="/image/contract/rainbow.webp" alt="Rainbow" />
+      <div className={styles.rainbow}>
+        <img src="/image/contract/rainbow.webp" alt="Rainbow" />
+      </div>
+      <div className={styles.balloon}>
+        <img src="/image/contract/ballon.webp" alt="Hot Air Balloon" />
+      </div>
+      <p className={styles.title}>SEND TRANSACTION</p>
+      <div className={styles.form}>
+        <label className={styles.label}>WALLET ADDRESS</label>
+        <div className={styles.inputGroup}>
+          <input
+            type="text"
+            placeholder="Enter Wallet..."
+            value={formatAddress(walletAdd!)}
+            onChange={(e) => setWallet(e.target.value)}
+            className={styles.input}
+            readOnly={!!connectedWallet}
+          />
+          <button
+            className={styles.reconnectButton}
+            onClick={handleReconnectWalletClick}
+          >
+            <RefreshCw size={20} className={styles.reconnectIcon} /> reconnect
+          </button>
         </div>
-        <div className={styles.balloon}>
-          <img src="/image/contract/ballon.webp" alt="Hot Air Balloon" />
+        <label className={styles.label}>TWITTER USERNAME</label>
+        <div className={styles.inputGroup}>
+          <input
+            type="text"
+            placeholder="Enter Twitter..."
+            value={isTwitterLoading ? "Loading..." : formatTwitter(twitterName)}
+            className={styles.input}
+            readOnly={true}
+          />
+          <button
+            className={styles.reconnectButton}
+            onClick={handleReconnectTwitterClick}
+            disabled={isTwitterLoading}
+          >
+            <RefreshCw size={20} className={styles.reconnectIcon} /> reconnect
+          </button>
         </div>
-        <p className={styles.title}>SEND TRANSACTION</p>
-        <div className={styles.form}>
-          <label className={styles.label}>WALLET ADDRESS</label>
-          <div className={styles.inputGroup}>
-            <input
-              type="text"
-              placeholder="Enter Wallet..."
-              value={formatAddress(walletAdd!)}
-              onChange={(e) => setWallet(e.target.value)}
-              className={styles.input}
-              readOnly={!!connectedWallet}
-            />
-            <button
-              className={styles.reconnectButton}
-              onClick={handleReconnectWalletClick}
-            >
-              <RefreshCw size={20} className={styles.reconnectIcon} /> reconnect
-            </button>
-          </div>
-          <label className={styles.label}>TWITTER USERNAME</label>
-          <div className={styles.inputGroup}>
-            <input
-              type="text"
-              placeholder="Enter Twitter..."
-              value={isTwitterLoading ? "Loading..." : formatTwitter(twitterName)}
-              className={styles.input}
-              readOnly={true}
-            />
-            <button
-              className={styles.reconnectButton}
-              onClick={handleReconnectTwitterClick}
-              disabled={isTwitterLoading}
-            >
-              <RefreshCw size={20} className={styles.reconnectIcon} /> reconnect
-            </button>
-          </div>
 
-          <div className={styles.buttonContainer}>
-            <div
-              className={styles.buttonWrapper}
-              onMouseEnter={() => !isFormValid && setShowTooltip(true)}
-              onMouseLeave={() => setShowTooltip(false)}
+        <div className={styles.buttonContainer}>
+          <div
+            className={styles.buttonWrapper}
+            onMouseEnter={() => !isFormValid && setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          >
+            <button
+              className={styles.createButton}
+              onClick={handleSendTransaction}
+              disabled={!isFormValid}
             >
-              <button
-                className={styles.createButton}
-                onClick={handleSendTransaction}
-                disabled={!isFormValid}
-              >
-                <ButtonBackground />
-                <span className={styles.buttonText}>SEND</span>
-              </button>
-              {showTooltip && !isFormValid && (
-                <div className={`${styles.tooltip} ${styles.tooltipVisible}`}>
-                  <span className={styles.tooltipIcon}>
-                    <AlertCircle size={16} />
-                  </span>
-                  <span className={styles.tooltipText}>
-                    Please fill in all fields
-                  </span>
-                </div>
-              )}
-            </div>
+              <ButtonBackground />
+              <span className={styles.buttonText}>SEND</span>
+            </button>
+            {showTooltip && !isFormValid && (
+              <div className={`${styles.tooltip} ${styles.tooltipVisible}`}>
+                <span className={styles.tooltipIcon}>
+                  <AlertCircle size={16} />
+                </span>
+                <span className={styles.tooltipText}>
+                  Please fill in all fields
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
