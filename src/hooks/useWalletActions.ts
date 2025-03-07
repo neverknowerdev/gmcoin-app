@@ -134,6 +134,11 @@ export const useWalletActions = ({
       setTwitterName?.(data.username);
       localStorage.setItem("twitterName", data.username);
       localStorage.setItem('twitterUserId', data.user_id);
+      localStorage.setItem('isTwitterConnected', 'true');
+      localStorage.setItem('userAuthenticated', 'true');
+      
+      localStorage.setItem("encryptedAccessToken", data.encrypted_access_token);
+      localStorage.setItem('accessToken', data.access_token);
 
       sessionStorage.setItem('encryptedAccessToken', data.encrypted_access_token);
       sessionStorage.setItem('accessToken', data.access_token);

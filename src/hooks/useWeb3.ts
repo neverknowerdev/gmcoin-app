@@ -60,7 +60,7 @@ export const useWeb3 = () => {
     const injected = injectedModule();
 
     const onboard = init({
-      wallets: [injected, ambireWallet, metamaskSDKWallet, phantom],
+      wallets: [injected, metamaskSDKWallet, phantom],
       connect: {
         showSidebar: true,
         autoConnectLastWallet: true,
