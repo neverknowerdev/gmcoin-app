@@ -169,7 +169,7 @@ export default function Home() {
       }
       const eventPromise = new Promise((resolve, reject) => {
         const infuraProvider = new ethers.WebSocketProvider(
-          "wss://long-rough-borough.base-sepolia.quiknode.pro/8e85fbd4a9d8a8f4e4098cd33f15b7eda54cc9e8/"
+          "wss://base-sepolia.infura.io/ws/v3/46c83ef6f9834cc49b76640eededc9f5"
         );
 
         const infuraContract = new ethers.Contract(
@@ -187,7 +187,7 @@ export default function Home() {
           reject(
             new Error("Transaction timeout: no event received after 60 seconds")
           );
-        }, 150000); // 2 mins to wait max
+        }, 180000); // 2 mins to wait max
 
         // event TwitterVerificationResult(string indexed userID, address indexed wallet, bool isSuccess, string errorMsg)
         infuraContract.on("TwitterVerificationResult", (userID, wallet, isSuccess, errorMsg) => {
