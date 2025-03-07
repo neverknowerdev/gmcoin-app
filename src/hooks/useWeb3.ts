@@ -76,7 +76,7 @@ export const useWeb3 = () => {
       
       appMetadata: {
         name: 'GM',
-        icon: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
+        icon: 'https://i.ibb.co/8DgJBg1H/Ac-WFYz-Ul-400x400-5.jpg',
         description: 'GM ☀️ first tweet&mint coin',
         recommendedInjectedWallets: [
           { name: 'MetaMask', url: 'https://metamask.io' },
