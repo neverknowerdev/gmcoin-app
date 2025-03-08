@@ -8,11 +8,12 @@ export const CONTRACT_ABI = [
 export const  API_URL = process.env.NEXT_PUBLIC_API_URL || ""; //mainnet
 export const TOKEN_URL= process.env.NEXT_PUBLIC_TOKEN_URL || "";
 
+// Update the CHAINS array (around line 9-15)
 export const CHAINS = [
   {
-    id: 8453,
+    id: 84532,  // Changed from 8453
     token: "ETH",
-    label: "Base",
-    rpcUrl: "https://mainnet.base.org",
+    label: "Base Sepolia",  // Changed from "Base"
+    rpcUrl: "https://sepolia.base.org",  // Changed from "https://mainnet.base.org"
   },
 ];
