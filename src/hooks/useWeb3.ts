@@ -60,23 +60,22 @@ export const useWeb3 = () => {
     const injected = injectedModule();
 
     const onboard = init({
-      wallets: [injected, metamaskSDKWallet, phantom],
+      wallets: [injected, ambireWallet, metamaskSDKWallet, phantom],
       connect: {
         showSidebar: true,
         autoConnectLastWallet: true,
       },
       chains: [
         {
-          id: '0x14A34',  // Changed from '0x2105'
+          id: '0x2105',
           token: 'ETH',
-          label: 'Base Sepolia',  // Changed from 'Base'
-          rpcUrl: 'https://sepolia.base.org',  // Changed from 'https://mainnet.base.org'
+          label: 'Base',
+          rpcUrl: 'https://mainnet.base.org',
         }
       ],
-      
       appMetadata: {
         name: 'GM',
-        icon: 'https://i.ibb.co/8DgJBg1H/Ac-WFYz-Ul-400x400-5.jpg',
+        icon: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
         description: 'GM ☀️ first tweet&mint coin',
         recommendedInjectedWallets: [
           { name: 'MetaMask', url: 'https://metamask.io' },
@@ -100,7 +99,7 @@ export const useWeb3 = () => {
     if (!connectedWallet?.provider) {
       throw new Error('No wallet connected');
     }
-    return new ethers.BrowserProvider(connectedWallet.provider, 84532);
+    return new ethers.BrowserProvider(connectedWallet.provider, 8453);
   };
 
   const getSigner = async () => {
@@ -143,7 +142,7 @@ export const useWeb3 = () => {
         dappIconPath: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
       });
 
-      ambireLoginSDK.openLogin({chainId: 84532});  // Changed from 8453
+      ambireLoginSDK.openLogin({chainId: 8453});
       console.log("Ambire Wallet created successfully!");
     } catch (error) {
       console.error("Error creating Ambire Wallet:", error);
@@ -176,7 +175,7 @@ export const useWeb3 = () => {
 
 async function switchToBase() {
   console.log('switchToBase..');
-  const baseChainId = '0x14A34';  // Changed from '0x2105'
+  const baseChainId = '0x2105'; // Chain ID for Base Mainnet (8453 in hex)
 
   const windowEthereum = window.ethereum;
   if(!windowEthereum) {
@@ -206,17 +205,16 @@ async function switchToBase() {
           params: [
             {
               chainId: baseChainId,
-              chainName: 'Base Sepolia',  // Changed from 'Base Mainnet'
+              chainName: 'Base Mainnet',
               nativeCurrency: {
                 name: 'Base',
                 symbol: 'ETH',
                 decimals: 18,
               },
-              rpcUrls: ['https://sepolia.base.org'],  // Changed from 'https://mainnet.base.org'
-              blockExplorerUrls: ['https://sepolia.basescan.org'], 
+              rpcUrls: ['https://mainnet.base.org'],
+              blockExplorerUrls: ['https://basescan.org'],
             },
           ],
-        
         });
 
         // After adding, switch to Base
