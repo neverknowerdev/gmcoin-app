@@ -23,8 +23,9 @@ export default function Home() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isTwitterConnected, setIsTwitterConnected] = useState(false);
-  const [isTwitterLoading, setIsTwitterLoading] = useState(false);
+  const [isTwitterLoading, setIsTwitterLoading] = useState(true);
   const [isCheckingStorage, setIsCheckingStorage] = useState(true);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(true);
   const [transactionStatus, setTransactionStatus] = useState<
     "idle" | "pending" | "success" | "error"
   >("idle");
@@ -45,12 +46,20 @@ export default function Home() {
       const twitterUserId = localStorage.getItem("twitterUserId");
       const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
       const twitterName = localStorage.getItem("twitterName");
+      const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
       
       if (twitterUserId && encryptedAccessToken && twitterName) {
-        console.log("All required data found in storage, user is already authenticated");
-        setIsTwitterConnected(true);
-        setCurrentStep(2); // Skip to transaction step which will show success popup
-        setIsAuthorized(true);
+        if (hasCompletedTx === "true") {
+          console.log("User has previously completed verification, showing success directly");
+          setIsFirstTimeUser(false);
+          setIsTwitterConnected(true);
+          setCurrentStep(2);
+          setIsAuthorized(true);
+        } else {
+          console.log("User has data but hasn't completed verification yet");
+          setIsTwitterConnected(true);
+          setCurrentStep(2); // Still move to transaction step
+        }
       }
       setIsCheckingStorage(false);
     };
@@ -72,7 +81,7 @@ export default function Home() {
 
   useEffect(() => {
     const checkTwitterAuth = () => {
-      // Skip if we're already authorized
+      // Skip if we're already fully authorized
       if (isAuthorized) {
         setIsTwitterLoading(false);
         return;
@@ -101,7 +110,6 @@ export default function Home() {
     };
     
     if (!isCheckingStorage) {
-      setIsTwitterLoading(true);
       checkTwitterAuth();
     }
   }, [isCheckingStorage, isAuthorized, connectedWallet]);
@@ -109,13 +117,15 @@ export default function Home() {
   const openTwitterAuthPopup = async () => {
     if (typeof window === "undefined") return;
 
-    // Check if user is already authenticated before starting Twitter auth
+    // Check if user is a returning user
     const twitterUserId = localStorage.getItem("twitterUserId");
     const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
     const twitterName = localStorage.getItem("twitterName");
+    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
     
-    if (twitterUserId && encryptedAccessToken && twitterName) {
-      console.log("User already authenticated, skipping Twitter auth");
+    if (twitterUserId && encryptedAccessToken && twitterName && hasCompletedTx === "true") {
+      console.log("Returning user, skipping Twitter auth");
+      setIsFirstTimeUser(false);
       setIsTwitterConnected(true);
       setCurrentStep(2);
       setIsAuthorized(true);
@@ -137,61 +147,191 @@ export default function Home() {
     window.location.href = twitterAuthUrl;
   };
 
+  // Function to poll for the specific TwitterVerificationResult event
+  const pollForTwitterVerificationEvent = async (
+    txHash: string,
+    walletAddress: string,
+    twitterUserId: string,
+    maxAttempts = 30,
+    intervalMs = 6000
+  ) => {
+    console.log(`🔍 Polling for TwitterVerificationResult event for tx: ${txHash}`);
+    console.log(`👤 Twitter User ID: ${twitterUserId}`);
+    console.log(`👛 Wallet Address: ${walletAddress}`);
+    
+    // Use HTTP provider for polling
+    const httpProvider = new ethers.JsonRpcProvider(
+      "https://base-sepolia.infura.io/v3/46c83ef6f9834cc49b76640eededc9f5"
+    );
+    
+    // Create contract instance
+    const contract = new ethers.Contract(
+      CONTRACT_ADDRESS,
+      CONTRACT_ABI,
+      httpProvider
+    );
+    
+    // Get the Twitter verification event signature
+    // From logs we can see this event has topic: 0xa5ad92a05a481deca6490891b32fb01290968d76ddd9b07af8e2e4079d8cc3ff
+    const twitterVerificationEventTopic = "0xa5ad92a05a481deca6490891b32fb01290968d76ddd9b07af8e2e4079d8cc3ff";
+    console.log(`🎯 Looking for event with topic: ${twitterVerificationEventTopic}`);
+    
+    // Also get the second topic that should contain our wallet address
+    const walletAddressTopic = ethers.zeroPadValue(
+      walletAddress.toLowerCase(),
+      32
+    ).toLowerCase();
+    console.log(`🔑 Wallet address as topic: ${walletAddressTopic}`);
+    
+    let attempts = 0;
+    
+    // Helper function to check for the specific event
+    const checkForEvent = async () => {
+      try {
+        const receipt = await httpProvider.getTransactionReceipt(txHash);
+        
+        if (!receipt) {
+          console.log(`⏳ Transaction ${txHash} not yet mined. Waiting...`);
+          return null;
+        }
+        
+        console.log(`📜 Transaction mined with ${receipt.logs.length} logs`);
+        
+        // Check each log for our specific event
+        for (const log of receipt.logs) {
+          // Check if this log is from our contract
+          if (log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) {
+            continue;
+          }
+          
+          console.log(`📄 Examining log: Topics=${JSON.stringify(log.topics)}`);
+          
+          // Check if first topic matches our event signature
+          if (log.topics[0].toLowerCase() === twitterVerificationEventTopic.toLowerCase()) {
+            console.log(`🎯 Found log with matching event topic!`);
+            
+            // Check if second topic contains our wallet address
+            if (log.topics[1].toLowerCase() === walletAddressTopic.toLowerCase()) {
+              console.log(`✅ Wallet address match confirmed!`);
+              
+                return {
+                  found: true,
+                  isSuccess: true,
+                  errorMsg: ""
+                };
+              
+            } else {
+              console.log(`❌ Wallet address in event doesn't match our wallet`);
+            }
+          }
+        }
+        
+        // If we got here, we didn't find our specific event
+        return { found: false };
+      } catch (error: any) {
+        console.error(`❌ Error checking for event: ${error.message}`);
+        return null;
+      }
+    };
+    
+    // Use polling with increasing delay
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        if (attempts >= maxAttempts) {
+          console.log(`⚠️ Maximum polling attempts (${maxAttempts}) reached`);
+          reject(new Error(`Verification event not found after ${maxAttempts} attempts`));
+          return;
+        }
+        
+        attempts++;
+        console.log(`📊 Polling attempt ${attempts}/${maxAttempts}`);
+        
+        const result = await checkForEvent();
+        
+        if (result === null) {
+          // Transaction not yet mined, continue polling
+          setTimeout(poll, intervalMs);
+        } else if (!result.found) {
+          // Transaction mined but our event not found, continue polling
+          setTimeout(poll, intervalMs + (attempts * 1000));
+        } else {
+          // Event found!
+          if (result.isSuccess) {
+            console.log(`🎉 Found successful verification event!`);
+            resolve("success");
+          } else {
+            console.log(`❌ Found verification event but it indicates failure: ${result.errorMsg}`);
+            reject(new Error(result.errorMsg || "Verification failed"));
+          }
+        }
+      };
+      
+      // Start polling
+      poll();
+    });
+  };
+
   const sendTransaction = async (): Promise<void> => {
     if (!connectedWallet) {
       console.log("❌ Wallet is not connected. Connecting...");
       await connect();
       return;
     }
-
-    // Check if user is already authenticated
-    const twitterUserId = localStorage.getItem("twitterUserId");
-    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const twitterName = localStorage.getItem("twitterName");
-    
-    if (twitterUserId && encryptedAccessToken && twitterName) {
-      console.log("✅ User already authenticated, skipping transaction");
+  
+    const encryptedAccessToken = sessionStorage.getItem('encryptedAccessToken');
+    const accessToken = sessionStorage.getItem('accessToken');
+    const twitterUserId = localStorage.getItem('twitterUserId');
+    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
+  
+    console.log('encryptedAccessToken', encryptedAccessToken);
+    console.log('twitterUserId', twitterUserId);
+  
+    // Skip transaction if returning user with completed verification
+    if (twitterUserId && encryptedAccessToken && localStorage.getItem('twitterName') && hasCompletedTx === "true") {
+      console.log("✅ Returning user, skipping transaction");
+      setIsFirstTimeUser(false);
       setTransactionStatus("success");
       return;
     }
-
-    const accessToken = sessionStorage.getItem('accessToken');
-
-    console.log('encryptedAccessToken', encryptedAccessToken);
-    console.log('twitterUserId', twitterUserId);
-
+  
     try {
       setTransactionStatus("pending");
       console.log("🚀 Sending transaction...");
-
+  
       const browserProvider = getProvider();
       const signer = await getSigner();
       const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
+  
       const address = await signer.getAddress();
       const balance = await browserProvider.getBalance(address);
       console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
-
-      const estimatedGas = await contract.requestTwitterVerification.estimateGas(
-        encryptedAccessToken,
-        twitterUserId
-      );
+  
+      let txReceipt;
+  
+      const estimatedGas =
+        await contract.requestTwitterVerification.estimateGas(
+          encryptedAccessToken,
+          twitterUserId
+        );
       console.log(`⛽ Estimated gas: ${estimatedGas.toString()}`);
 
       const gasPrice = await browserProvider.getFeeData();
       const totalGasCost = BigInt(estimatedGas) * gasPrice.gasPrice!;
       console.log(`💰 Gas cost: ${ethers.formatEther(totalGasCost)} ETH`);
 
-      let txReceipt;
+      let txHash;
+
+      // Direct contract call path
       if (balance > totalGasCost * 2n) {
         console.log("🔹 Sending contract transaction...");
         const tx = await contract.requestTwitterVerification(
           encryptedAccessToken,
           twitterUserId
         );
-        console.log("Transaction hash:", tx.hash);
+        txHash = tx.hash;
+        console.log("Transaction hash:", txHash);
         
-        // Wait for transaction confirmation only, not for events
+        // Wait for transaction confirmation, but not for events
         txReceipt = await tx.wait();
         console.log("Transaction confirmed:", txReceipt);
       } else {
@@ -208,13 +348,13 @@ export default function Home() {
               signature
             }),
           });
-
+  
           if (!response.ok) {
             throw new Error(
               `API Error: ${response.status} ${response.statusText}`
             );
           }
-
+  
           txReceipt = await response.json();
           console.log("API response:", txReceipt);
         } catch (apiError: any) {
@@ -222,11 +362,14 @@ export default function Home() {
           throw new Error(`Relayer service error: ${apiError.message}`);
         }
       }
-      
+  
       // Set up background event listener to log events but don't wait for it
-      setupBackgroundEventListener();
+      setupEventListener();
       
-      // Set success status immediately after transaction completion
+      // Mark the user as having completed verification
+      localStorage.setItem("hasCompletedTwitterVerification", "true");
+      
+      // Set success status after transaction completion
       setTransactionStatus("success");
       sessionStorage.removeItem("code");
       sessionStorage.removeItem("verifier");
@@ -240,6 +383,8 @@ export default function Home() {
       
       if (postErrorTwitterUserId && postErrorEncryptedToken && postErrorTwitterName) {
         console.log("Transaction error but required data is available, marking as success");
+        // Still mark as completed since data is available
+        localStorage.setItem("hasCompletedTwitterVerification", "true");
         setTransactionStatus("success");
       } else {
         setErrorMessage(getErrorMessage(error));
@@ -248,9 +393,9 @@ export default function Home() {
       }
     }
   };
-
+  
   // Optional background event listener that doesn't block UI flow
-  const setupBackgroundEventListener = () => {
+  const setupEventListener = () => {
     try {
       const infuraProvider = new ethers.WebSocketProvider(
         "wss://base-sepolia.infura.io/ws/v3/46c83ef6f9834cc49b76640eededc9f5"
@@ -338,6 +483,7 @@ export default function Home() {
             walletAddress={connectedWallet?.accounts[0]?.address || ""}
             sendTransaction={sendTransaction}
             connect={connect}
+            isFirstTimeUser={false}
           />
         </div>
       ) : (
@@ -362,6 +508,7 @@ export default function Home() {
               walletAddress={connectedWallet?.accounts[0]?.address || ""}
               sendTransaction={sendTransaction}
               connect={connect}
+              isFirstTimeUser={true}
             />
           )}
         </div>

@@ -14,6 +14,7 @@ interface SendContractProps {
   sendTransaction: () => Promise<void>;
   walletAddress: string;
   connect: () => Promise<void>;
+  isFirstTimeUser?: boolean;
 }
 
 const SendContract: React.FC<SendContractProps> = ({
@@ -21,6 +22,7 @@ const SendContract: React.FC<SendContractProps> = ({
   walletAddress,
   sendTransaction,
   connect,
+  isFirstTimeUser = true, // Default to true if not specified
 }) => {
   const [wallet, setWallet] = useState(walletAddress);
   const [walletAdd, setWalletAdd] = useState(walletAddress);
@@ -42,17 +44,20 @@ const SendContract: React.FC<SendContractProps> = ({
   const [isTwitterLoading, setIsTwitterLoading] = useState(false);
   const router = useRouter();
   
-  // Check if user is already authenticated on component mount
+  // Check if user is a returning verified user
   useEffect(() => {
     const twitterUserId = localStorage.getItem("twitterUserId");
     const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
     const storedTwitterName = localStorage.getItem("twitterName");
+    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
     
-    if (twitterUserId && encryptedAccessToken && storedTwitterName) {
-      console.log("User already authenticated, showing dashboard popup immediately");
+    // Only auto-show success modal for returning users who have completed verification
+    if (twitterUserId && encryptedAccessToken && storedTwitterName && 
+        hasCompletedTx === "true" && !isFirstTimeUser) {
+      console.log("Returning verified user, showing dashboard popup immediately");
       setModalState("success");
     }
-  }, []);
+  }, [isFirstTimeUser]);
   
   const {
     switchNetwork,
@@ -151,15 +156,8 @@ const SendContract: React.FC<SendContractProps> = ({
         sessionStorage.removeItem('verifier');
         sessionStorage.removeItem('code');
         
-        // Check if all required data is now available to show success
-        const twitterUserId = localStorage.getItem("twitterUserId");
-        const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-        const twitterName = localStorage.getItem("twitterName");
-        
-        if (twitterUserId && encryptedAccessToken && twitterName) {
-          console.log("Authentication complete, showing dashboard popup");
-          setModalState("success");
-        }
+        // Don't automatically show success for first-time users
+        // They need to complete the transaction first
       })
       .catch(error => {
         console.error("Failed to fetch Twitter token:", error);
@@ -182,13 +180,14 @@ const SendContract: React.FC<SendContractProps> = ({
   const handleSendTransaction = async () => {
     if (!isFormValid) return;
 
-    // Check if all required data is already available first
+    // Check if user is a returning verified user
     const twitterUserId = localStorage.getItem("twitterUserId");
     const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const twitterName = localStorage.getItem("twitterName");
+    const storedTwitterName = localStorage.getItem("twitterName");
+    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
     
-    if (twitterUserId && encryptedAccessToken && twitterName) {
-      console.log("User already authenticated, showing dashboard popup");
+    if (twitterUserId && encryptedAccessToken && storedTwitterName && hasCompletedTx === "true") {
+      console.log("Returning verified user, showing dashboard popup");
       setModalState("success");
       return;
     }
@@ -218,33 +217,21 @@ const SendContract: React.FC<SendContractProps> = ({
       try {
         await sendTransaction();
         
-        // Check again after transaction if data is available
-        const postTxTwitterUserId = localStorage.getItem("twitterUserId");
-        const postTxEncryptedToken = sessionStorage.getItem("encryptedAccessToken");
-        const postTxTwitterName = localStorage.getItem("twitterName");
+        // Now that transaction is completed, mark user as verified
+        localStorage.setItem("hasCompletedTwitterVerification", "true");
         
-        if (postTxTwitterUserId && postTxEncryptedToken && postTxTwitterName) {
-          setModalState("success");
-        } else {
-          // Allow some time for storage to be updated
-          setTimeout(() => {
-            const finalCheckTwitterUserId = localStorage.getItem("twitterUserId");
-            const finalCheckEncryptedToken = sessionStorage.getItem("encryptedAccessToken");
-            const finalCheckTwitterName = localStorage.getItem("twitterName");
-            
-            if (finalCheckTwitterUserId && finalCheckEncryptedToken && finalCheckTwitterName) {
-              setModalState("success");
-            }
-          }, 1000);
-        }
+        // Show success modal after transaction completes
+        setModalState("success");
       } catch (error: any) {
-        // Even if transaction failed, check if we have the data
+        // Check if we have the required data despite the error
         const postErrorTwitterUserId = localStorage.getItem("twitterUserId");
         const postErrorEncryptedToken = sessionStorage.getItem("encryptedAccessToken");
         const postErrorTwitterName = localStorage.getItem("twitterName");
         
         if (postErrorTwitterUserId && postErrorEncryptedToken && postErrorTwitterName) {
           console.log("Transaction failed but required data is available, showing success");
+          // Still mark as verified
+          localStorage.setItem("hasCompletedTwitterVerification", "true");
           setModalState("success");
         } else {
           throw error; // Re-throw if we don't have the data
