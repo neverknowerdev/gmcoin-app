@@ -8,6 +8,7 @@ import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
 import { useConnectWallet } from "@web3-onboard/react";
+
 interface SendContractProps {
   connectedWallet: { accounts: { address: string }[] } | null;
   sendTransaction: () => Promise<void>;
@@ -40,6 +41,19 @@ const SendContract: React.FC<SendContractProps> = ({
   const [code, setCode] = useState(() => sessionStorage.getItem("code") || "");
   const [isTwitterLoading, setIsTwitterLoading] = useState(false);
   const router = useRouter();
+  
+  // Check if user is already authenticated on component mount
+  useEffect(() => {
+    const twitterUserId = localStorage.getItem("twitterUserId");
+    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
+    const storedTwitterName = localStorage.getItem("twitterName");
+    
+    if (twitterUserId && encryptedAccessToken && storedTwitterName) {
+      console.log("User already authenticated, showing dashboard popup immediately");
+      setModalState("success");
+    }
+  }, []);
+  
   const {
     switchNetwork,
     reconnectWallet,
@@ -57,11 +71,13 @@ const SendContract: React.FC<SendContractProps> = ({
 
   const handleReconnectWalletClick = () => reconnectWallet(setWalletAdd);
   const handleReconnectTwitterClick = () => reconnectTwitter();
+  
   useEffect(() => {
     if (walletAddress) {
       setWallet(walletAddress);
     }
   }, [walletAddress]);
+  
   useEffect(() => {
     const storedVerifier = sessionStorage.getItem("verifier");
     const storedCode = sessionStorage.getItem("code");
@@ -72,6 +88,7 @@ const SendContract: React.FC<SendContractProps> = ({
       setTwitterName(storedUsername);
     }
   }, []);
+  
   useEffect(() => {
     const updateWallet = (event?: StorageEvent) => {
       if (!event || event.key === "walletAddress") {
@@ -88,17 +105,21 @@ const SendContract: React.FC<SendContractProps> = ({
       window.removeEventListener("storage", updateWallet);
     };
   }, []);
+  
   useEffect(() => {
     if (verifier) {
       sessionStorage.setItem("verifier", verifier);
     }
   }, [verifier]);
+  
   const isFormValid = walletAdd?.trim() !== "";
+  
   const formatAddress = (address: string) => {
     if (!address || address === "Please connect wallet")
       return "Please connect wallet";
     return `${address.slice(0, 8)}...${address.slice(-4)}`;
   };
+  
   const formatTwitter = (twitterName: string | null) => {
     if (!twitterName) return "..";
 
@@ -129,6 +150,16 @@ const SendContract: React.FC<SendContractProps> = ({
         setVerifier('');
         sessionStorage.removeItem('verifier');
         sessionStorage.removeItem('code');
+        
+        // Check if all required data is now available to show success
+        const twitterUserId = localStorage.getItem("twitterUserId");
+        const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
+        const twitterName = localStorage.getItem("twitterName");
+        
+        if (twitterUserId && encryptedAccessToken && twitterName) {
+          console.log("Authentication complete, showing dashboard popup");
+          setModalState("success");
+        }
       })
       .catch(error => {
         console.error("Failed to fetch Twitter token:", error);
@@ -150,6 +181,17 @@ const SendContract: React.FC<SendContractProps> = ({
 
   const handleSendTransaction = async () => {
     if (!isFormValid) return;
+
+    // Check if all required data is already available first
+    const twitterUserId = localStorage.getItem("twitterUserId");
+    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
+    const twitterName = localStorage.getItem("twitterName");
+    
+    if (twitterUserId && encryptedAccessToken && twitterName) {
+      console.log("User already authenticated, showing dashboard popup");
+      setModalState("success");
+      return;
+    }
 
     console.log('wallet', wallet);
     if (!connectedWallet) {
@@ -173,16 +215,46 @@ const SendContract: React.FC<SendContractProps> = ({
 
       setModalState("loading");
 
-      await sendTransaction();
-      setModalState("success");
+      try {
+        await sendTransaction();
+        
+        // Check again after transaction if data is available
+        const postTxTwitterUserId = localStorage.getItem("twitterUserId");
+        const postTxEncryptedToken = sessionStorage.getItem("encryptedAccessToken");
+        const postTxTwitterName = localStorage.getItem("twitterName");
+        
+        if (postTxTwitterUserId && postTxEncryptedToken && postTxTwitterName) {
+          setModalState("success");
+        } else {
+          // Allow some time for storage to be updated
+          setTimeout(() => {
+            const finalCheckTwitterUserId = localStorage.getItem("twitterUserId");
+            const finalCheckEncryptedToken = sessionStorage.getItem("encryptedAccessToken");
+            const finalCheckTwitterName = localStorage.getItem("twitterName");
+            
+            if (finalCheckTwitterUserId && finalCheckEncryptedToken && finalCheckTwitterName) {
+              setModalState("success");
+            }
+          }, 1000);
+        }
+      } catch (error: any) {
+        // Even if transaction failed, check if we have the data
+        const postErrorTwitterUserId = localStorage.getItem("twitterUserId");
+        const postErrorEncryptedToken = sessionStorage.getItem("encryptedAccessToken");
+        const postErrorTwitterName = localStorage.getItem("twitterName");
+        
+        if (postErrorTwitterUserId && postErrorEncryptedToken && postErrorTwitterName) {
+          console.log("Transaction failed but required data is available, showing success");
+          setModalState("success");
+        } else {
+          throw error; // Re-throw if we don't have the data
+        }
+      }
 
       sessionStorage.removeItem('accessToken');
-      sessionStorage.removeItem('encryptedAccessToken');
     } catch (error: any) {
       console.error("Transaction error:", error);
-
       const errorMessage = getErrorMessage(error);
-
       setErrorMessage(errorMessage);
       setModalState("error");
     }
@@ -344,7 +416,7 @@ const SendContract: React.FC<SendContractProps> = ({
             <div className={styles.modalContent}>
               <p>
                 🎉 Well done!
-                <br /> Now you’re in. You can go to Twitter and write “GM”.
+                <br /> Now you're in. You can go to Twitter and write "GM".
                 You'll receive GM coins for every tweet with "GM" word.
                 <br /> Use hashtags and cashtags to get even more coins.
               </p>
