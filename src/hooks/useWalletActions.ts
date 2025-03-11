@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useWeb3 } from "@/src/hooks/useWeb3";
-import { TOKEN_URL, TWITTER_CLIENT_ID } from "@/src/config";
+import { CURRENT_CHAIN, TOKEN_URL, TWITTER_CLIENT_ID } from "@/src/config";
 import { generateCodeVerifier, generateCodeChallenge } from "@/src/utils/auth";
 
 interface WalletActionsParams {
@@ -29,7 +29,7 @@ export const useWalletActions = ({
       //@ts-ignore
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: '0x14A34' }],  // Changed from '0x2105'
+        params: [{ chainId: CURRENT_CHAIN.hexId }],
       });
       console.log('window.ethereum.request after');
       setIsWrongNetwork?.(false);
@@ -43,15 +43,15 @@ export const useWalletActions = ({
             method: "wallet_addEthereumChain",
             params: [
               {
-                chainId: '0x14A34',  // Changed from '0x2105'
-                chainName: "Base Sepolia",  // Changed from "Base"
+                chainId: CURRENT_CHAIN.hexId,
+                chainName: CURRENT_CHAIN.label,
                 nativeCurrency: {
                   name: "ETH",
                   symbol: "ETH",
                   decimals: 18,
                 },
-                rpcUrls: ["https://sepolia.base.org"],  // Changed from "https://mainnet.base.org"
-                blockExplorerUrls: ["https://sepolia.basescan.org"], 
+                rpcUrls: [CURRENT_CHAIN.rpcUrl],
+                blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl], 
               },
             ],
           });

@@ -11,6 +11,7 @@ import { AmbireLoginSDK } from '@ambire/login-sdk-core'
 import { CHAINS } from '@/src/config';
 import { ethers } from 'ethers';
 import {Chain, OnboardAPI, WalletState} from "@web3-onboard/core";
+import { CONTRACT_ADDRESS, CONTRACT_ABI, API_URL, CURRENT_CHAIN } from "@/src/config";
 
 
 export const useWeb3 = () => {
@@ -67,10 +68,10 @@ export const useWeb3 = () => {
       },
       chains: [
         {
-          id: '0x14A34',  // Changed from '0x2105'
-          token: 'ETH',
-          label: 'Base Sepolia',  // Changed from 'Base'
-          rpcUrl: 'https://sepolia.base.org',  // Changed from 'https://mainnet.base.org'
+          id: CURRENT_CHAIN.hexId,
+          token: CURRENT_CHAIN.token,
+          label: CURRENT_CHAIN.label,
+          rpcUrl: CURRENT_CHAIN.rpcUrl,
         }
       ],
       
@@ -176,7 +177,7 @@ export const useWeb3 = () => {
 
 async function switchToBase() {
   console.log('switchToBase..');
-  const baseChainId = '0x14A34';  // Changed from '0x2105'
+  const baseChainId = CURRENT_CHAIN.hexId;
 
   const windowEthereum = window.ethereum;
   if(!windowEthereum) {
@@ -196,9 +197,9 @@ async function switchToBase() {
       });
     }
 
-    console.log('Connected to Base network');
+    console.log(`Connected to ${CURRENT_CHAIN.label} network`);
   } catch (switchError: any) {
-    // If Base isn’t added, add it first
+    // If Base isn't added, add it first
     if (switchError.code && switchError.code === 4902) {
       try {
         await windowEthereum.request({
@@ -206,17 +207,16 @@ async function switchToBase() {
           params: [
             {
               chainId: baseChainId,
-              chainName: 'Base Sepolia',  // Changed from 'Base Mainnet'
+              chainName: CURRENT_CHAIN.label,
               nativeCurrency: {
                 name: 'Base',
                 symbol: 'ETH',
                 decimals: 18,
               },
-              rpcUrls: ['https://sepolia.base.org'],  // Changed from 'https://mainnet.base.org'
-              blockExplorerUrls: ['https://sepolia.basescan.org'], 
+              rpcUrls: [CURRENT_CHAIN.rpcUrl],
+              blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl], 
             },
           ],
-        
         });
 
         // After adding, switch to Base
@@ -225,12 +225,12 @@ async function switchToBase() {
           params: [{ chainId: baseChainId }],
         });
 
-        console.log('Base network added and switched');
+        console.log(`${CURRENT_CHAIN.label} network added and switched`);
       } catch (addError) {
-        console.error('Failed to add Base network:', addError);
+        console.error(`Failed to add ${CURRENT_CHAIN.label} network:`, addError);
       }
     } else {
-      console.error('Failed to switch to Base network:', switchError);
+      console.error(`Failed to switch to ${CURRENT_CHAIN.label} network:`, switchError);
     }
   }
 }
