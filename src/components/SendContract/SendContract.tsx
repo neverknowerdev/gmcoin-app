@@ -205,6 +205,7 @@ const SendContract: React.FC<SendContractProps> = ({
     try {
       //@ts-ignore
       const provider = getProvider();
+      console.log('provider', provider);
       const network = await provider.getNetwork();
 
       console.log('sendTransaction', provider, network.chainId, network);
