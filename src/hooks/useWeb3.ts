@@ -128,7 +128,8 @@ export const useWeb3 = () => {
     try {
       const wallets = await web3Onboard.connectWallet();
       console.log('wallets', wallets.length, wallets);
-      await switchToBase();
+      await web3Onboard.setChain({chainId: CURRENT_CHAIN.hexId});
+      // await switchToBase();
 
       if(wallets.length > 0) {
         setConnectedWallet(wallets[0]);

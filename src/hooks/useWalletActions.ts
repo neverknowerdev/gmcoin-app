@@ -21,10 +21,15 @@ export const useWalletActions = ({
   setUser,
   setIsWrongNetwork,
 }: WalletActionsParams) => {
-  const { disconnect, connectedChain, getProvider } = useWeb3();
+  const { disconnect, connectedChain, getProvider, web3Onboard } = useWeb3();
 
   const handleSwitchNetwork = useCallback(async () => {
     console.log('handleSwitchNetwork');
+
+    await web3Onboard?.setChain({chainId: CURRENT_CHAIN.hexId});
+
+    return;
+
     try {
       console.log('window.ethereum.request');
       //@ts-ignore
