@@ -24,6 +24,7 @@ export const useWalletActions = ({
   const { disconnect, connectedChain, getProvider } = useWeb3();
 
   const handleSwitchNetwork = useCallback(async () => {
+    console.log('handleSwitchNetwork');
     try {
       console.log('window.ethereum.request');
       //@ts-ignore
