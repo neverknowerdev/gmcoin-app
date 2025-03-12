@@ -8,6 +8,7 @@ import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
 import { useConnectWallet } from "@web3-onboard/react";
+import {CURRENT_CHAIN} from "@/src/config";
 
 interface SendContractProps {
   connectedWallet: { accounts: { address: string }[] } | null;
@@ -203,9 +204,9 @@ const SendContract: React.FC<SendContractProps> = ({
       const provider = getProvider();
       const network = await provider.getNetwork();
 
-      console.log('sendTransaction', provider, network);
+      console.log('sendTransaction', provider, network.chainId, network);
 
-      if (network.chainId.toString() !== "84532") {
+      if (network.chainId.toString() !== CURRENT_CHAIN.id.toString()) {
         setIsWrongNetwork(true);
         setErrorMessage("Please switch to Base network");
         setModalState("wrongNetwork");
