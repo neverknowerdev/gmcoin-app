@@ -447,7 +447,7 @@ const SendContract: React.FC<SendContractProps> = ({
 
               <button
                 className={styles.successButton}
-                onClick={() => router.push("/dashbord")}
+                onClick={() => router.push("/")}
               >
                 GO TO DASHBOARD 🚀
               </button>
