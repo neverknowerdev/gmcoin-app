@@ -9,7 +9,7 @@ gmcoin-app/
 │  ├─ api/
 │  │  └─ proxyTwitter.ts
 │  ├─ app/
-│  │  ├─ dashbord/
+│  │  ├─ dashboard/
 │  │  │  ├─ dashboard.module.css
 │  │  │  └─ page.tsx
 │  │  ├─ favicon.ico
