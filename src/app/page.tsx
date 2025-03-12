@@ -1,291 +1,204 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
-import { ethers, Contract } from "ethers";
+import styles from "./dashboard.module.css";
+import { useWallet } from "@/src/context/WalletContext";
 import { useWeb3 } from "@/src/hooks/useWeb3";
-import TwitterConnect from "@/src/components/TwitterConnect";
-import { generateCodeVerifier, generateCodeChallenge } from "@/src/utils/auth";
-import styles from "./page.module.css";
-import {
-  CONTRACT_ADDRESS,
-  CONTRACT_ABI,
-  API_URL,
-  TWITTER_CLIENT_ID,
-} from "@/src/config";
-import ConnectWallet from "../components/connectWallet/ConnectWallet";
-import SendContract from "../components/SendContract/SendContract";
-import SunLoader from "../components/loader/loader";
-import { useWallet } from "../context/WalletContext";
-import ProgressNavigation from "../components/ProgressNavigation/ProgressNavigation";
-import { getErrorMessage } from "../hooks/errorHandler";
+import { useRouter } from "next/navigation";
+import { ethers, Contract } from "ethers";
+import { CONTRACT_ADDRESS } from "@/src/config";
 
-export default function Home() {
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isTwitterConnected, setIsTwitterConnected] = useState(false);
-  const [isTwitterLoading, setIsTwitterLoading] = useState(true);
-  const [transactionStatus, setTransactionStatus] = useState<
-    "idle" | "pending" | "success" | "error"
-  >("idle");
-  const [errorMessage, setErrorMessage] = useState<string>("");
-  const {
-    connectedWallet,
-    connect,
-    createAmbireWallet,
-    disconnect,
-    getSigner,
-    getProvider,
-  } = useWeb3();
+const CONTRACT_ABI = [
+  "function requestTwitterVerification(string calldata accessCodeEncrypted, string calldata userID) public",
+  "event TwitterVerificationResult(string indexed userID, address indexed wallet, bool isSuccess, string errorMsg)",
+  "function userByWallet(address wallet) public view returns (string memory)",
+  "function balanceOf(address owner) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+];
+
+const Dashboard = () => {
+  const { disconnect: web3Disconnect, getSigner } = useWeb3();
   const { updateWalletInfo } = useWallet();
-
-  useEffect(() => {
-    if (connectedWallet && currentStep === 0) {
-      setCurrentStep(1);
+  const router = useRouter();
+  const [twitterName, setTwitterName] = useState<string>("");
+  const [username, setUsername] = useState("@username");
+  const [tokenBalance, setTokenBalance] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("verifier") || "";
     }
-  }, [connectedWallet, currentStep]);
+    return "";
+  });
 
-  useEffect(() => {
-    if (connectedWallet?.accounts[0]?.address) {
-      updateWalletInfo(connectedWallet.accounts[0].address);
+  const [code, setCode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("code") || "";
     }
-  }, [connectedWallet]);
+    return "";
+  });
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkTwitterAuth = () => {
-      const params = new URLSearchParams(window.location.search);
-      const authorizationCode = params.get("code");
-
-      if (authorizationCode) {
-        console.log("Found authorization code in URL");
-        setIsTwitterConnected(true);
-        sessionStorage.setItem("code", authorizationCode);
-        const newUrl = window.location.origin + window.location.pathname;
-        window.history.replaceState({}, document.title, newUrl);
-        setCurrentStep(2);
-        if (connectedWallet) {
-          setCurrentStep(2);
-        }
-      } else {
-        const storedCode = sessionStorage.getItem("code");
-        if (storedCode) {
-          setIsTwitterConnected(true);
-        }
-      }
-      setIsTwitterLoading(false);
-    };
-    checkTwitterAuth();
+    const storedAddress = localStorage.getItem("walletAddress");
+    if (storedAddress) {
+      setWalletAddress(storedAddress);
+    }
+  }, []);
+  useEffect(() => {
+    const storedUser = sessionStorage.getItem("verifier");
+    const storedCode = sessionStorage.getItem("code");
+    if (storedUser && storedCode) {
+      setUser(storedUser);
+      setCode(storedCode);
+    }
   }, []);
 
-  const openTwitterAuthPopup = async () => {
-    if (typeof window === "undefined") return;
+  useEffect(() => {
+    const storedUsername = localStorage.getItem("twitterName");
+    if (storedUsername) {
+      setTwitterName(
+        storedUsername.startsWith("@") ? storedUsername : `@${storedUsername}`
+      );
+    }
+  }, []);
 
-    setIsTwitterLoading(true);
-    const codeVerifier = generateCodeVerifier();
-    sessionStorage.setItem("verifier", codeVerifier);
-
-    const codeChallenge = await generateCodeChallenge(codeVerifier);
-    console.log("Generated challenge:", codeChallenge);
-
-    const redirectUri = encodeURIComponent(
-      window.location.origin + window.location.pathname
-    );
-    const twitterAuthUrl = `https://x.com/i/oauth2/authorize?response_type=code&client_id=${TWITTER_CLIENT_ID}&redirect_uri=${redirectUri}&scope=users.read%20tweet.read&state=state123&code_challenge=${codeChallenge}&code_challenge_method=S256`;
-
-    window.location.href = twitterAuthUrl;
-  };
-
-  const sendTransaction = async (): Promise<void> => {
-    if (!connectedWallet) {
-      console.log("❌ Wallet is not connected. Connecting...");
-      await connect();
+  useEffect(() => {
+    // Check if userAuthenticated is true in localStorage
+    const isAuthenticated = localStorage.getItem("userAuthenticated") === "true";
+    if (!isAuthenticated) {
+      router.push("/connect");
+    }
+  }, [router]);
+  
+  const loadTokenBalance = async () => {
+    if (!walletAddress) {
+      console.error("Wallet address not found");
       return;
     }
-
-    const encryptedAccessToken = sessionStorage.getItem('encryptedAccessToken');
-    const accessToken = sessionStorage.getItem('accessToken');
-    const twitterUserId = localStorage.getItem('twitterUserId');
-
-    console.log('encryptedAccessToken', encryptedAccessToken);
-    console.log('twitterUserId', twitterUserId);
-
+    setIsLoading(true);
 
     try {
-      setTransactionStatus("pending");
-      console.log("🚀 Sending transaction...");
-
-      const browserProvider = getProvider();
       const signer = await getSigner();
       const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-      const address = await signer.getAddress();
-      const balance = await browserProvider.getBalance(address);
-      console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
+      const rawBalance = await contract.balanceOf(walletAddress);
+      console.log("Raw balance:", rawBalance);
 
-      const estimatedGas =
-        await contract.requestTwitterVerification.estimateGas(
-          encryptedAccessToken,
-          twitterUserId
-        );
-      console.log(`⛽ Estimated gas: ${estimatedGas.toString()}`);
-
-      const gasPrice = await browserProvider.getFeeData();
-      const totalGasCost = BigInt(estimatedGas) * gasPrice.gasPrice!;
-      console.log(`💰 Gas cost: ${ethers.formatEther(totalGasCost)} ETH`);
-
-      let transactionPromise;
-      if (balance > totalGasCost * 2n) {
-        console.log("🔹 Sending contract transaction...");
-        const tx = await contract.requestTwitterVerification(
-            encryptedAccessToken,
-            twitterUserId
-        );
-        transactionPromise = tx.wait();
+      let decimals = 18;
+      if (typeof contract.decimals === "function") {
+        decimals = await contract.decimals();
       } else {
-        console.log("🔹 Using API relay...");
-        try {
-          const signature = await signer.signMessage(
-            "gmcoin.meme twitter-verification"
-          );
-          const response = await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              accessToken,
-              signature
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(
-              `API Error: ${response.status} ${response.statusText}`
-            );
-          }
-
-          transactionPromise = response.json();
-        } catch (apiError: any) {
-          console.error("❌ API Error:", apiError);
-          throw new Error(`Relayer service error: ${apiError.message}`);
-        }
+        console.warn("Decimals method not supported, defaulting to 18");
       }
-      const eventPromise = new Promise((resolve, reject) => {
-        const infuraProvider = new ethers.WebSocketProvider(
-          "wss://base-sepolia.infura.io/ws/v3/46c83ef6f9834cc49b76640eededc9f5"
-        );
 
-        const infuraContract = new ethers.Contract(
-          CONTRACT_ADDRESS,
-          CONTRACT_ABI,
-          infuraProvider
-        );
-
-        const cleanup = () => {
-          infuraContract.removeAllListeners("TwitterVerificationResult");
-        };
-
-        const timeout = setTimeout(() => {
-          cleanup();
-          reject(
-            new Error("Transaction timeout: no event received after 60 seconds")
-          );
-        }, 120000); // 2 mins to wait max
-
-        // event TwitterVerificationResult(string indexed userID, address indexed wallet, bool isSuccess, string errorMsg)
-        infuraContract.on("TwitterVerificationResult", (userID, wallet, isSuccess, errorMsg) => {
-          clearTimeout(timeout);
-          cleanup();
-
-          if(isSuccess) {
-            console.log("✅Twitter connected event received!");
-            resolve("success");
-          } else {
-            console.error(`❌ Twitter connect error: ${errorMsg}`);
-            reject(new Error(errorMsg));
-          }
-        });
-      });
-
-      try {
-        await Promise.all([transactionPromise, eventPromise]);
-        setTransactionStatus("success");
-        sessionStorage.removeItem("code");
-        sessionStorage.removeItem("verifier");
-      } catch (eventError: any) {
-        throw new Error(`Transaction event error: ${eventError.message}`);
-      }
-    } catch (error: any) {
-      console.error("❌ Transaction Error:", error);
-      setErrorMessage(getErrorMessage(error));
-      setTransactionStatus("error");
-      throw error;
+      const formattedBalance = ethers.formatUnits(rawBalance, decimals);
+      setTokenBalance(formattedBalance);
+    } catch (error) {
+      console.error("error loading GM balance:", error);
+      setTokenBalance("0.00");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleStepChange = (newStep: number) => {
-    setCurrentStep(newStep);
-  };
+  useEffect(() => {
+    if (walletAddress) {
+      loadTokenBalance();
+    }
+  }, [walletAddress]);
 
-  const handleBack = async () => {
-    if (currentStep === 2) {
-      setCurrentStep(1);
-      setTransactionStatus("idle");
-      sessionStorage.removeItem("code");
-      sessionStorage.removeItem("verifier");
-      setIsTwitterConnected(false);
-    } else if (currentStep === 1) {
-      setCurrentStep(0);
-      await disconnect();
-    } else if (currentStep === 0) {
-      setIsTwitterConnected(false);
-      sessionStorage.removeItem("code");
-      sessionStorage.removeItem("verifier");
+  const handleDisconnect = async () => {
+    try {
+      await web3Disconnect();
+      updateWalletInfo("");
+      router.push("/");
+    } catch (error) {
+      console.error("Error disconnecting:", error);
     }
   };
 
-  if (isTwitterLoading) {
-    return (
-      <main className="min-h-screen bg-white flex items-center justify-center">
-        <div className={styles.loaderContainer}>
-          <SunLoader />
-        </div>
-      </main>
-    );
-  }
+  const formatAddress = (address: string) => {
+    if (!address || address === "Please connect wallet")
+      return "Please connect wallet";
+    return `${address.slice(0, 10)}...${address.slice(-4)}`;
+  };
 
   return (
-    <main className="min-h-screen bg-white">
-      <ProgressNavigation
-        currentStep={currentStep}
-        onBack={handleBack}
-        onStepChange={handleStepChange}
-      />
-      {isAuthorized ? (
-        <div className="p-4">Authorized!</div>
-      ) : (
-        <div>
-          {currentStep === 0 && (
-            <ConnectWallet
-              onConnect={connect}
-              createAmbireWallet={createAmbireWallet}
-            />
-          )}
-
-          {currentStep === 1 && connectedWallet && (
-            <TwitterConnect
-              onConnectClick={openTwitterAuthPopup}
-              isConnecting={false}
-            />
-          )}
-
-          {isTwitterConnected && currentStep === 2 && (
-            <SendContract
-              connectedWallet={connectedWallet}
-              walletAddress={connectedWallet?.accounts[0]?.address || ""}
-              sendTransaction={sendTransaction}
-              connect={connect}
-            />
-          )}
+    <div className={styles.container}>
+      <div className={styles.infoContainer}>
+        <div className={styles.cosmoman}>
+          <img src="/cosmoman.png" alt="Cosmoman" />
         </div>
-      )}
-    </main>
+
+        <div className={styles.cloude}>
+          <p className={styles.username}>{twitterName || username}</p>
+          <div className={styles.addressContainer}>
+            <p>{formatAddress(walletAddress!)}</p>
+            <button
+              className={`${styles.iconButton} ${styles.disconnectButton}`}
+              onClick={handleDisconnect}
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10 3H6a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h4" />
+                <path d="M18 8l4 4-4 4" />
+                <path d="M22 12H10" />
+              </svg>
+            </button>
+          </div>
+          <div className={styles.balanceContainer}>
+            <p className={styles.balance}>
+              {isLoading
+                ? "Loading..."
+                : tokenBalance
+                ? `${tokenBalance} GM`
+                : "0 GM"}
+            </p>
+            <button
+              className={`${styles.iconButton} ${styles.refreshButton}`}
+              onClick={loadTokenBalance}
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 6.9 3.2L21 9" />
+                <path d="M21 3v6h-6" />
+                <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-6.9-3.2L3 15" />
+                <path d="M3 21v-6h6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.decorations}>
+        <div className={styles.rainbow}>
+          <img src="/image/wallet/rainbow.png" alt="Rainbow" />
+        </div>
+        <div className={styles.cloud1}>
+          <img src="/image/wallet/cloud1.png" alt="Cloud1" />
+        </div>
+        <div className={styles.cloud2}>
+          <img src="/image/wallet/cloud2.png" alt="Cloud2" />
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default Dashboard;

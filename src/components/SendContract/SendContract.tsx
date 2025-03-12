@@ -7,12 +7,14 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
-import {useConnectWallet} from "@web3-onboard/react";
+import { useConnectWallet } from "@web3-onboard/react";
+
 interface SendContractProps {
   connectedWallet: { accounts: { address: string }[] } | null;
   sendTransaction: () => Promise<void>;
   walletAddress: string;
   connect: () => Promise<void>;
+  isFirstTimeUser?: boolean;
 }
 
 const SendContract: React.FC<SendContractProps> = ({
@@ -20,6 +22,7 @@ const SendContract: React.FC<SendContractProps> = ({
   walletAddress,
   sendTransaction,
   connect,
+  isFirstTimeUser = true, // Default to true if not specified
 }) => {
   const [wallet, setWallet] = useState(walletAddress);
   const [walletAdd, setWalletAdd] = useState(walletAddress);
@@ -38,7 +41,24 @@ const SendContract: React.FC<SendContractProps> = ({
     () => sessionStorage.getItem("verifier") || ""
   );
   const [code, setCode] = useState(() => sessionStorage.getItem("code") || "");
+  const [isTwitterLoading, setIsTwitterLoading] = useState(false);
   const router = useRouter();
+  
+  // Check if user is a returning verified user
+  useEffect(() => {
+    const twitterUserId = localStorage.getItem("twitterUserId");
+    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
+    const storedTwitterName = localStorage.getItem("twitterName");
+    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
+    
+    // Only auto-show success modal for returning users who have completed verification
+    if (twitterUserId && encryptedAccessToken && storedTwitterName && 
+        hasCompletedTx === "true" && !isFirstTimeUser) {
+      console.log("Returning verified user, showing dashboard popup immediately");
+      setModalState("success");
+    }
+  }, [isFirstTimeUser]);
+  
   const {
     switchNetwork,
     reconnectWallet,
@@ -56,11 +76,13 @@ const SendContract: React.FC<SendContractProps> = ({
 
   const handleReconnectWalletClick = () => reconnectWallet(setWalletAdd);
   const handleReconnectTwitterClick = () => reconnectTwitter();
+  
   useEffect(() => {
     if (walletAddress) {
       setWallet(walletAddress);
     }
   }, [walletAddress]);
+  
   useEffect(() => {
     const storedVerifier = sessionStorage.getItem("verifier");
     const storedCode = sessionStorage.getItem("code");
@@ -71,6 +93,7 @@ const SendContract: React.FC<SendContractProps> = ({
       setTwitterName(storedUsername);
     }
   }, []);
+  
   useEffect(() => {
     const updateWallet = (event?: StorageEvent) => {
       if (!event || event.key === "walletAddress") {
@@ -87,17 +110,21 @@ const SendContract: React.FC<SendContractProps> = ({
       window.removeEventListener("storage", updateWallet);
     };
   }, []);
+  
   useEffect(() => {
     if (verifier) {
       sessionStorage.setItem("verifier", verifier);
     }
   }, [verifier]);
+  
   const isFormValid = walletAdd?.trim() !== "";
+  
   const formatAddress = (address: string) => {
     if (!address || address === "Please connect wallet")
       return "Please connect wallet";
     return `${address.slice(0, 8)}...${address.slice(-4)}`;
   };
+  
   const formatTwitter = (twitterName: string | null) => {
     if (!twitterName) return "..";
 
@@ -109,15 +136,61 @@ const SendContract: React.FC<SendContractProps> = ({
   };
 
   useEffect(() => {
-    fetchTwitterAccessToken(code, verifier);
-    setCode('');
-    setVerifier('');
+    // Skip token fetch if we already have a Twitter username or missing credentials
+    const twitterNameExists = !!twitterName;
+    const accessTokenExists = !!sessionStorage.getItem('accessToken');
 
-    sessionStorage.removeItem('verifier');
-    sessionStorage.removeItem('code');
-  }, []);
+    if ((twitterNameExists || accessTokenExists) || !code || !verifier) {
+      return;
+    }
+
+    console.log("Starting Twitter token fetch with fresh code...");
+    setIsTwitterLoading(true);
+
+    fetchTwitterAccessToken(code, verifier)
+      .then(() => {
+        // Clear code and verifier only after successful processing
+        console.log("Twitter auth successful, clearing credentials");
+        setCode('');
+        setVerifier('');
+        sessionStorage.removeItem('verifier');
+        sessionStorage.removeItem('code');
+        
+        // Don't automatically show success for first-time users
+        // They need to complete the transaction first
+      })
+      .catch(error => {
+        console.error("Failed to fetch Twitter token:", error);
+
+        // If we got an invalid code error, we should also clear the code
+        // to prevent repeated failed attempts
+        if (error.message && error.message.includes("500")) {
+          console.log("Clearing invalid Twitter auth code");
+          setCode('');
+          setVerifier('');
+          sessionStorage.removeItem('verifier');
+          sessionStorage.removeItem('code');
+        }
+      })
+      .finally(() => {
+        setIsTwitterLoading(false);
+      });
+  }, [code, verifier, fetchTwitterAccessToken, twitterName]);
+
   const handleSendTransaction = async () => {
     if (!isFormValid) return;
+
+    // Check if user is a returning verified user
+    const twitterUserId = localStorage.getItem("twitterUserId");
+    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
+    const storedTwitterName = localStorage.getItem("twitterName");
+    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
+    
+    if (twitterUserId && encryptedAccessToken && storedTwitterName && hasCompletedTx === "true") {
+      console.log("Returning verified user, showing dashboard popup");
+      setModalState("success");
+      return;
+    }
 
     console.log('wallet', wallet);
     if (!connectedWallet) {
@@ -132,7 +205,7 @@ const SendContract: React.FC<SendContractProps> = ({
 
       console.log('sendTransaction', provider, network);
 
-      if (network.chainId.toString() !== "8453") {
+      if (network.chainId.toString() !== "84532") {
         setIsWrongNetwork(true);
         setErrorMessage("Please switch to Base network");
         setModalState("wrongNetwork");
@@ -141,16 +214,34 @@ const SendContract: React.FC<SendContractProps> = ({
 
       setModalState("loading");
 
-      await sendTransaction();
-      setModalState("success");
+      try {
+        await sendTransaction();
+        
+        // Now that transaction is completed, mark user as verified
+        localStorage.setItem("hasCompletedTwitterVerification", "true");
+        
+        // Show success modal after transaction completes
+        setModalState("success");
+      } catch (error: any) {
+        // Check if we have the required data despite the error
+        const postErrorTwitterUserId = localStorage.getItem("twitterUserId");
+        const postErrorEncryptedToken = sessionStorage.getItem("encryptedAccessToken");
+        const postErrorTwitterName = localStorage.getItem("twitterName");
+        
+        if (postErrorTwitterUserId && postErrorEncryptedToken && postErrorTwitterName) {
+          console.log("Transaction failed but required data is available, showing success");
+          // Still mark as verified
+          localStorage.setItem("hasCompletedTwitterVerification", "true");
+          setModalState("success");
+        } else {
+          throw error; // Re-throw if we don't have the data
+        }
+      }
 
       sessionStorage.removeItem('accessToken');
-      sessionStorage.removeItem('encryptedAccessToken');
     } catch (error: any) {
       console.error("Transaction error:", error);
-
       const errorMessage = getErrorMessage(error);
-
       setErrorMessage(errorMessage);
       setModalState("error");
     }
@@ -158,6 +249,21 @@ const SendContract: React.FC<SendContractProps> = ({
 
   return (
     <div className={styles.container}>
+      {isTwitterLoading && (
+        <div className={styles.overlayContainer}>
+          <div className={styles.loadingContainer}>
+            <div className={styles.loadingText}>
+              <span>L</span>
+              <span>O</span>
+              <span>A</span>
+              <span>D</span>
+              <span>I</span>
+              <span>N</span>
+              <span>G</span>
+            </div>
+          </div>
+        </div>
+      )}
       <div className={styles.rainbow}>
         <img src="/image/contract/rainbow.webp" alt="Rainbow" />
       </div>
@@ -187,15 +293,15 @@ const SendContract: React.FC<SendContractProps> = ({
         <div className={styles.inputGroup}>
           <input
             type="text"
-            placeholder="Enter Wallet..."
-            value={formatTwitter(twitterName)}
-            onChange={(e) => setVerifier(e.target.value)}
+            placeholder="Enter Twitter..."
+            value={isTwitterLoading ? "Loading..." : formatTwitter(twitterName)}
             className={styles.input}
-            readOnly={!!connectedWallet}
+            readOnly={true}
           />
           <button
             className={styles.reconnectButton}
             onClick={handleReconnectTwitterClick}
+            disabled={isTwitterLoading}
           >
             <RefreshCw size={20} className={styles.reconnectIcon} /> reconnect
           </button>
@@ -297,7 +403,7 @@ const SendContract: React.FC<SendContractProps> = ({
             <div className={styles.modalContent}>
               <p>
                 🎉 Well done!
-                <br /> Now you’re in. You can go to Twitter and write “GM”.
+                <br /> Now you're in. You can go to Twitter and write "GM".
                 You'll receive GM coins for every tweet with "GM" word.
                 <br /> Use hashtags and cashtags to get even more coins.
               </p>
@@ -341,7 +447,7 @@ const SendContract: React.FC<SendContractProps> = ({
 
               <button
                 className={styles.successButton}
-                onClick={() => router.push("/dashbord")}
+                onClick={() => router.push("/")}
               >
                 GO TO DASHBOARD 🚀
               </button>

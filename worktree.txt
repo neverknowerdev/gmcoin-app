@@ -1,0 +1,56 @@
+
+gmcoin-app/
+├─ .env
+├─ .next/
+├─ app/
+│  ├─ trace
+│  └─ types/
+├─ src/
+│  ├─ api/
+│  │  └─ proxyTwitter.ts
+│  ├─ app/
+│  │  ├─ dashboard/
+│  │  │  ├─ dashboard.module.css
+│  │  │  └─ page.tsx
+│  │  ├─ favicon.ico
+│  │  ├─ globals.css
+│  │  ├─ layout.tsx
+│  │  ├─ page.module.css
+│  │  └─ page.tsx
+│  ├─ components/
+│  │  ├─ ProgressNavigation/
+│  │  │  ├─ ProgressNavigation.module.css
+│  │  │  └─ ProgressNavigation.tsx
+│  │  ├─ SendContract/
+│  │  │  ├─ SendContract.module.css
+│  │  │  └─ SendContract.tsx
+│  │  ├─ TwitterConnect.module.css
+│  │  ├─ TwitterConnect.tsx
+│  │  ├─ buttons/
+│  │  │  ├─ BlueButton.module.css
+│  │  │  ├─ BlueButton.tsx
+│  │  │  └─ YellowButton.tsx
+│  │  ├─ connectWallet/
+│  │  │  ├─ ConnectWallet.module.css
+│  │  │  └─ ConnectWallet.tsx
+│  │  ├─ loader/
+│  │  │  ├─ Loader.module.css
+│  │  │  └─ loader.tsx
+│  │  └─ modal/
+│  │     ├─ Modal.module.css
+│  │     └─ Modal.tsx
+│  ├─ config/
+│  │  └─ index.ts
+│  ├─ context/
+│  │  └─ WalletContext.tsx
+│  ├─ hooks/
+│  │  ├─ errorHandler.ts
+│  │  ├─ useWalletActions.ts
+│  │  └─ useWeb3.ts
+│  ├─ types/
+│  │  ├─ index.ts
+│  │  └─ web3-onboard.d.ts
+│  └─ utils/
+│     └─ auth.ts
+└─ tsconfig.json
+

@@ -1,16 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
-// import init from '@web3-onboard/core';
 import { init, useSetChain, useWallets } from "@web3-onboard/react";
 
 import injectedModule from '@web3-onboard/injected-wallets';
 import metamaskSDK from '@web3-onboard/metamask';
 import phantomModule from '@web3-onboard/phantom';
+import walletConnectModule from '@web3-onboard/walletconnect';
+// Add Coinbase Wallet import
+import coinbaseWalletModule from '@web3-onboard/coinbase';
 import { AmbireWalletModule } from '@ambire/login-sdk-web3-onboard';
 import { AmbireLoginSDK } from '@ambire/login-sdk-core'
-import { CHAINS } from '@/src/config';
+import { CHAINS, WALLETCONNECT_PROJECT_ID } from '@/src/config';
 import { ethers } from 'ethers';
 import {Chain, OnboardAPI, WalletState} from "@web3-onboard/core";
+import { CONTRACT_ADDRESS, CONTRACT_ABI, API_URL, CURRENT_CHAIN } from "@/src/config";
 
 
 export const useWeb3 = () => {
@@ -56,26 +58,42 @@ export const useWeb3 = () => {
       },
     });
 
+    // Initialize WalletConnect
+    const walletConnect = walletConnectModule({
+      projectId: WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
+      requiredChains: [84532], // Base Sepolia chain ID
+      dappUrl: window.location.origin
+    });
+
+    // Initialize Coinbase Wallet with the correct properties
+    const coinbaseWallet = coinbaseWalletModule({
+      darkMode: false,
+      enableMobileWalletLink: true,
+      reloadOnDisconnect: false
+    });
+
     const phantom = phantomModule();
     const injected = injectedModule();
 
     const onboard = init({
-      wallets: [injected, ambireWallet, metamaskSDKWallet, phantom],
+      // Add coinbaseWallet to the wallets array
+      wallets: [injected, metamaskSDKWallet, phantom, walletConnect, coinbaseWallet],
       connect: {
         showSidebar: true,
         autoConnectLastWallet: true,
       },
       chains: [
         {
-          id: '0x2105',
-          token: 'ETH',
-          label: 'Base',
-          rpcUrl: 'https://mainnet.base.org',
+          id: CURRENT_CHAIN.hexId,
+          token: CURRENT_CHAIN.token,
+          label: CURRENT_CHAIN.label,
+          rpcUrl: CURRENT_CHAIN.rpcUrl,
         }
       ],
+      
       appMetadata: {
         name: 'GM',
-        icon: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
+        icon: 'https://i.ibb.co/8DgJBg1H/Ac-WFYz-Ul-400x400-5.jpg',
         description: 'GM ☀️ first tweet&mint coin',
         recommendedInjectedWallets: [
           { name: 'MetaMask', url: 'https://metamask.io' },
@@ -93,13 +111,10 @@ export const useWeb3 = () => {
     setWeb3Onboard(onboard);
   }, []);
   const getProvider = () => {
-    // const provider = new ethers.BrowserProvider(window.ethereum);
-    // console.log('provider', provider);
-    // return provider;
     if (!connectedWallet?.provider) {
       throw new Error('No wallet connected');
     }
-    return new ethers.BrowserProvider(connectedWallet.provider, 8453);
+    return new ethers.BrowserProvider(connectedWallet.provider, 84532);
   };
 
   const getSigner = async () => {
@@ -112,10 +127,7 @@ export const useWeb3 = () => {
     try {
       const wallets = await web3Onboard.connectWallet();
       console.log('wallets', wallets.length, wallets);
-      // await web3Onboard.setChain({chainId: '0x2105'});
       await switchToBase();
-      // const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      // console.log('Connected account:', accounts.length, accounts);
 
       if(wallets.length > 0) {
         setConnectedWallet(wallets[0]);
@@ -142,7 +154,7 @@ export const useWeb3 = () => {
         dappIconPath: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
       });
 
-      ambireLoginSDK.openLogin({chainId: 8453});
+      ambireLoginSDK.openLogin({chainId: 84532});  // Changed from 8453
       console.log("Ambire Wallet created successfully!");
     } catch (error) {
       console.error("Error creating Ambire Wallet:", error);
@@ -175,7 +187,7 @@ export const useWeb3 = () => {
 
 async function switchToBase() {
   console.log('switchToBase..');
-  const baseChainId = '0x2105'; // Chain ID for Base Mainnet (8453 in hex)
+  const baseChainId = CURRENT_CHAIN.hexId;
 
   const windowEthereum = window.ethereum;
   if(!windowEthereum) {
@@ -195,9 +207,9 @@ async function switchToBase() {
       });
     }
 
-    console.log('Connected to Base network');
+    console.log(`Connected to ${CURRENT_CHAIN.label} network`);
   } catch (switchError: any) {
-    // If Base isn’t added, add it first
+    // If Base isn't added, add it first
     if (switchError.code && switchError.code === 4902) {
       try {
         await windowEthereum.request({
@@ -205,14 +217,14 @@ async function switchToBase() {
           params: [
             {
               chainId: baseChainId,
-              chainName: 'Base Mainnet',
+              chainName: CURRENT_CHAIN.label,
               nativeCurrency: {
                 name: 'Base',
                 symbol: 'ETH',
                 decimals: 18,
               },
-              rpcUrls: ['https://mainnet.base.org'],
-              blockExplorerUrls: ['https://basescan.org'],
+              rpcUrls: [CURRENT_CHAIN.rpcUrl],
+              blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl], 
             },
           ],
         });
@@ -223,12 +235,12 @@ async function switchToBase() {
           params: [{ chainId: baseChainId }],
         });
 
-        console.log('Base network added and switched');
+        console.log(`${CURRENT_CHAIN.label} network added and switched`);
       } catch (addError) {
-        console.error('Failed to add Base network:', addError);
+        console.error(`Failed to add ${CURRENT_CHAIN.label} network:`, addError);
       }
     } else {
-      console.error('Failed to switch to Base network:', switchError);
+      console.error(`Failed to switch to ${CURRENT_CHAIN.label} network:`, switchError);
     }
   }
 }
