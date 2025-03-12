@@ -115,7 +115,7 @@ export const useWeb3 = () => {
       throw new Error('No wallet connected');
     }
     // return connectedWallet.provider;
-    return new ethers.BrowserProvider(connectedWallet.provider, 'any');
+    return new ethers.BrowserProvider(connectedWallet.provider, CURRENT_CHAIN.hexId);
   };
 
   const getSigner = async () => {
