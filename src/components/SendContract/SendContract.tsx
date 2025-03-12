@@ -196,6 +196,7 @@ const SendContract: React.FC<SendContractProps> = ({
     }
 
     console.log('wallet', wallet);
+    console.log('current chain', CURRENT_CHAIN);
     if (!connectedWallet) {
       console.log("Wallet not connected. Trying to connect...");
       await connect();
