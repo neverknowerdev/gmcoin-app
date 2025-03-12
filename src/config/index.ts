@@ -10,19 +10,11 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 export const TOKEN_URL = process.env.NEXT_PUBLIC_TOKEN_URL || "";
 
 // Network configuration
-export const NETWORK = process.env.NEXT_PUBLIC_NETWORK || "testnet";
+export const NETWORK = process.env.NEXT_PUBLIC_NETWORK ;
 
 // Chain configurations
 export const CHAIN_CONFIGS = {
-  testnet: {
-    id: 84532,
-    hexId: "0x14A34",
-    token: "ETH",
-    label: "Base Sepolia",
-    rpcUrl: "https://sepolia.base.org",
-    wsRpcUrl: "wss://sepolia.base.org/ws",
-    blockExplorerUrl: "https://sepolia.basescan.org"
-  },
+ 
   mainnet: {
     id: 8453,
     hexId: "0x2105",

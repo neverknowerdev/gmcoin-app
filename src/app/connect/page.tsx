@@ -148,128 +148,128 @@ export default function Home() {
   };
 
   // Function to poll for the specific TwitterVerificationResult event
-  const pollForTwitterVerificationEvent = async (
-    txHash: string,
-    walletAddress: string,
-    twitterUserId: string,
-    maxAttempts = 30,
-    intervalMs = 6000
-  ) => {
-    console.log(`🔍 Polling for TwitterVerificationResult event for tx: ${txHash}`);
-    console.log(`👤 Twitter User ID: ${twitterUserId}`);
-    console.log(`👛 Wallet Address: ${walletAddress}`);
+  // const pollForTwitterVerificationEvent = async (
+  //   txHash: string,
+  //   walletAddress: string,
+  //   twitterUserId: string,
+  //   maxAttempts = 30,
+  //   intervalMs = 6000
+  // ) => {
+  //   console.log(`🔍 Polling for TwitterVerificationResult event for tx: ${txHash}`);
+  //   console.log(`👤 Twitter User ID: ${twitterUserId}`);
+  //   console.log(`👛 Wallet Address: ${walletAddress}`);
     
-    // Use HTTP provider for polling
-    const httpProvider = new ethers.JsonRpcProvider(
-      "https://base-sepolia.infura.io/v3/46c83ef6f9834cc49b76640eededc9f5"
-    );
+  //   // Use HTTP provider for polling
+  //   const httpProvider = new ethers.JsonRpcProvider(
+  //     "https://base-sepolia.infura.io/v3/46c83ef6f9834cc49b76640eededc9f5"
+  //   );
     
-    // Create contract instance
-    const contract = new ethers.Contract(
-      CONTRACT_ADDRESS,
-      CONTRACT_ABI,
-      httpProvider
-    );
+  //   // Create contract instance
+  //   const contract = new ethers.Contract(
+  //     CONTRACT_ADDRESS,
+  //     CONTRACT_ABI,
+  //     httpProvider
+  //   );
     
-    // Get the Twitter verification event signature
-    // From logs we can see this event has topic: 0xa5ad92a05a481deca6490891b32fb01290968d76ddd9b07af8e2e4079d8cc3ff
-    const twitterVerificationEventTopic = "0xa5ad92a05a481deca6490891b32fb01290968d76ddd9b07af8e2e4079d8cc3ff";
-    console.log(`🎯 Looking for event with topic: ${twitterVerificationEventTopic}`);
+  //   // Get the Twitter verification event signature
+  //   // From logs we can see this event has topic: 0xa5ad92a05a481deca6490891b32fb01290968d76ddd9b07af8e2e4079d8cc3ff
+  //   const twitterVerificationEventTopic = "0xa5ad92a05a481deca6490891b32fb01290968d76ddd9b07af8e2e4079d8cc3ff";
+  //   console.log(`🎯 Looking for event with topic: ${twitterVerificationEventTopic}`);
     
-    // Also get the second topic that should contain our wallet address
-    const walletAddressTopic = ethers.zeroPadValue(
-      walletAddress.toLowerCase(),
-      32
-    ).toLowerCase();
-    console.log(`🔑 Wallet address as topic: ${walletAddressTopic}`);
+  //   // Also get the second topic that should contain our wallet address
+  //   const walletAddressTopic = ethers.zeroPadValue(
+  //     walletAddress.toLowerCase(),
+  //     32
+  //   ).toLowerCase();
+  //   console.log(`🔑 Wallet address as topic: ${walletAddressTopic}`);
     
-    let attempts = 0;
+  //   let attempts = 0;
     
-    // Helper function to check for the specific event
-    const checkForEvent = async () => {
-      try {
-        const receipt = await httpProvider.getTransactionReceipt(txHash);
+  //   // Helper function to check for the specific event
+  //   const checkForEvent = async () => {
+  //     try {
+  //       const receipt = await httpProvider.getTransactionReceipt(txHash);
         
-        if (!receipt) {
-          console.log(`⏳ Transaction ${txHash} not yet mined. Waiting...`);
-          return null;
-        }
+  //       if (!receipt) {
+  //         console.log(`⏳ Transaction ${txHash} not yet mined. Waiting...`);
+  //         return null;
+  //       }
         
-        console.log(`📜 Transaction mined with ${receipt.logs.length} logs`);
+  //       console.log(`📜 Transaction mined with ${receipt.logs.length} logs`);
         
-        // Check each log for our specific event
-        for (const log of receipt.logs) {
-          // Check if this log is from our contract
-          if (log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) {
-            continue;
-          }
+  //       // Check each log for our specific event
+  //       for (const log of receipt.logs) {
+  //         // Check if this log is from our contract
+  //         if (log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) {
+  //           continue;
+  //         }
           
-          console.log(`📄 Examining log: Topics=${JSON.stringify(log.topics)}`);
+  //         console.log(`📄 Examining log: Topics=${JSON.stringify(log.topics)}`);
           
-          // Check if first topic matches our event signature
-          if (log.topics[0].toLowerCase() === twitterVerificationEventTopic.toLowerCase()) {
-            console.log(`🎯 Found log with matching event topic!`);
+  //         // Check if first topic matches our event signature
+  //         if (log.topics[0].toLowerCase() === twitterVerificationEventTopic.toLowerCase()) {
+  //           console.log(`🎯 Found log with matching event topic!`);
             
-            // Check if second topic contains our wallet address
-            if (log.topics[1].toLowerCase() === walletAddressTopic.toLowerCase()) {
-              console.log(`✅ Wallet address match confirmed!`);
+  //           // Check if second topic contains our wallet address
+  //           if (log.topics[1].toLowerCase() === walletAddressTopic.toLowerCase()) {
+  //             console.log(`✅ Wallet address match confirmed!`);
               
-                return {
-                  found: true,
-                  isSuccess: true,
-                  errorMsg: ""
-                };
+  //               return {
+  //                 found: true,
+  //                 isSuccess: true,
+  //                 errorMsg: ""
+  //               };
               
-            } else {
-              console.log(`❌ Wallet address in event doesn't match our wallet`);
-            }
-          }
-        }
+  //           } else {
+  //             console.log(`❌ Wallet address in event doesn't match our wallet`);
+  //           }
+  //         }
+  //       }
         
-        // If we got here, we didn't find our specific event
-        return { found: false };
-      } catch (error: any) {
-        console.error(`❌ Error checking for event: ${error.message}`);
-        return null;
-      }
-    };
+  //       // If we got here, we didn't find our specific event
+  //       return { found: false };
+  //     } catch (error: any) {
+  //       console.error(`❌ Error checking for event: ${error.message}`);
+  //       return null;
+  //     }
+  //   };
     
-    // Use polling with increasing delay
-    return new Promise((resolve, reject) => {
-      const poll = async () => {
-        if (attempts >= maxAttempts) {
-          console.log(`⚠️ Maximum polling attempts (${maxAttempts}) reached`);
-          reject(new Error(`Verification event not found after ${maxAttempts} attempts`));
-          return;
-        }
+  //   // Use polling with increasing delay
+  //   return new Promise((resolve, reject) => {
+  //     const poll = async () => {
+  //       if (attempts >= maxAttempts) {
+  //         console.log(`⚠️ Maximum polling attempts (${maxAttempts}) reached`);
+  //         reject(new Error(`Verification event not found after ${maxAttempts} attempts`));
+  //         return;
+  //       }
         
-        attempts++;
-        console.log(`📊 Polling attempt ${attempts}/${maxAttempts}`);
+  //       attempts++;
+  //       console.log(`📊 Polling attempt ${attempts}/${maxAttempts}`);
         
-        const result = await checkForEvent();
+  //       const result = await checkForEvent();
         
-        if (result === null) {
-          // Transaction not yet mined, continue polling
-          setTimeout(poll, intervalMs);
-        } else if (!result.found) {
-          // Transaction mined but our event not found, continue polling
-          setTimeout(poll, intervalMs + (attempts * 1000));
-        } else {
-          // Event found!
-          if (result.isSuccess) {
-            console.log(`🎉 Found successful verification event!`);
-            resolve("success");
-          } else {
-            console.log(`❌ Found verification event but it indicates failure: ${result.errorMsg}`);
-            reject(new Error(result.errorMsg || "Verification failed"));
-          }
-        }
-      };
+  //       if (result === null) {
+  //         // Transaction not yet mined, continue polling
+  //         setTimeout(poll, intervalMs);
+  //       } else if (!result.found) {
+  //         // Transaction mined but our event not found, continue polling
+  //         setTimeout(poll, intervalMs + (attempts * 1000));
+  //       } else {
+  //         // Event found!
+  //         if (result.isSuccess) {
+  //           console.log(`🎉 Found successful verification event!`);
+  //           resolve("success");
+  //         } else {
+  //           console.log(`❌ Found verification event but it indicates failure: ${result.errorMsg}`);
+  //           reject(new Error(result.errorMsg || "Verification failed"));
+  //         }
+  //       }
+  //     };
       
-      // Start polling
-      poll();
-    });
-  };
+  //     // Start polling
+  //     poll();
+  //   });
+  // };
 
   const sendTransaction = async (): Promise<void> => {
     if (!connectedWallet) {
