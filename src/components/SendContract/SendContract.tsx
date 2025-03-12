@@ -196,19 +196,20 @@ const SendContract: React.FC<SendContractProps> = ({
     }
 
     console.log('wallet', wallet);
-    console.log('current chain', CURRENT_CHAIN);
     if (!connectedWallet) {
       console.log("Wallet not connected. Trying to connect...");
       await connect();
       return;
     }
+
+    console.log('connected wallet', connectedWallet);
     try {
       //@ts-ignore
       const provider = getProvider();
       console.log('provider', provider);
       const network = await provider.getNetwork();
 
-      console.log('sendTransaction', provider, network.chainId, network);
+      console.log('sendTransaction', network.chainId.toString(), provider);
 
       if (network.chainId.toString() !== CURRENT_CHAIN.id.toString()) {
         setIsWrongNetwork(true);
