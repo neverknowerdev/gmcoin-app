@@ -1,5 +1,6 @@
 export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
 export const TWITTER_CLIENT_ID = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "";
+export const WALLETCONNECT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 export const CONTRACT_ABI = [
   "function requestTwitterVerification(string calldata accessCodeEncrypted, string calldata userID) public",
   "function userByWallet(address wallet) public view returns (string memory)",

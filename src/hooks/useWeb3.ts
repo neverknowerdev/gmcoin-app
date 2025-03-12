@@ -6,9 +6,11 @@ import { init, useSetChain, useWallets } from "@web3-onboard/react";
 import injectedModule from '@web3-onboard/injected-wallets';
 import metamaskSDK from '@web3-onboard/metamask';
 import phantomModule from '@web3-onboard/phantom';
+// Add WalletConnect import
+import walletConnectModule from '@web3-onboard/walletconnect';
 import { AmbireWalletModule } from '@ambire/login-sdk-web3-onboard';
 import { AmbireLoginSDK } from '@ambire/login-sdk-core'
-import { CHAINS } from '@/src/config';
+import { CHAINS, WALLETCONNECT_PROJECT_ID } from '@/src/config';
 import { ethers } from 'ethers';
 import {Chain, OnboardAPI, WalletState} from "@web3-onboard/core";
 import { CONTRACT_ADDRESS, CONTRACT_ABI, API_URL, CURRENT_CHAIN } from "@/src/config";
@@ -57,11 +59,19 @@ export const useWeb3 = () => {
       },
     });
 
+    // Initialize WalletConnect
+    const walletConnect = walletConnectModule({
+      projectId: WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
+      requiredChains: [84532], // Base Sepolia chain ID
+      dappUrl: window.location.origin
+    });
+
     const phantom = phantomModule();
     const injected = injectedModule();
 
     const onboard = init({
-      wallets: [injected, metamaskSDKWallet, phantom],
+      // Add walletConnect to the wallets array
+      wallets: [injected, metamaskSDKWallet, phantom, walletConnect],
       connect: {
         showSidebar: true,
         autoConnectLastWallet: true,
