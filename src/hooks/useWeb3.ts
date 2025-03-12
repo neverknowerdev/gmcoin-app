@@ -1,13 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
-// import init from '@web3-onboard/core';
 import { init, useSetChain, useWallets } from "@web3-onboard/react";
 
 import injectedModule from '@web3-onboard/injected-wallets';
 import metamaskSDK from '@web3-onboard/metamask';
 import phantomModule from '@web3-onboard/phantom';
-// Add WalletConnect import
 import walletConnectModule from '@web3-onboard/walletconnect';
+// Add Coinbase Wallet import
+import coinbaseWalletModule from '@web3-onboard/coinbase';
 import { AmbireWalletModule } from '@ambire/login-sdk-web3-onboard';
 import { AmbireLoginSDK } from '@ambire/login-sdk-core'
 import { CHAINS, WALLETCONNECT_PROJECT_ID } from '@/src/config';
@@ -66,12 +65,19 @@ export const useWeb3 = () => {
       dappUrl: window.location.origin
     });
 
+    // Initialize Coinbase Wallet with the correct properties
+    const coinbaseWallet = coinbaseWalletModule({
+      darkMode: false,
+      enableMobileWalletLink: true,
+      reloadOnDisconnect: false
+    });
+
     const phantom = phantomModule();
     const injected = injectedModule();
 
     const onboard = init({
-      // Add walletConnect to the wallets array
-      wallets: [injected, metamaskSDKWallet, phantom, walletConnect],
+      // Add coinbaseWallet to the wallets array
+      wallets: [injected, metamaskSDKWallet, phantom, walletConnect, coinbaseWallet],
       connect: {
         showSidebar: true,
         autoConnectLastWallet: true,
@@ -105,9 +111,6 @@ export const useWeb3 = () => {
     setWeb3Onboard(onboard);
   }, []);
   const getProvider = () => {
-    // const provider = new ethers.BrowserProvider(window.ethereum);
-    // console.log('provider', provider);
-    // return provider;
     if (!connectedWallet?.provider) {
       throw new Error('No wallet connected');
     }
@@ -124,10 +127,7 @@ export const useWeb3 = () => {
     try {
       const wallets = await web3Onboard.connectWallet();
       console.log('wallets', wallets.length, wallets);
-      // await web3Onboard.setChain({chainId: '0x2105'});
       await switchToBase();
-      // const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      // console.log('Connected account:', accounts.length, accounts);
 
       if(wallets.length > 0) {
         setConnectedWallet(wallets[0]);
