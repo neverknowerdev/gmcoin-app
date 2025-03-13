@@ -337,9 +337,14 @@ export default function Home() {
       } else {
         console.log("🔹 Using API relay...");
         try {
-          const signature = await signer.signMessage(
-            "gmcoin.meme twitter-verification"
+          const rawMessage = ethers.solidityPackedKeccak256(
+              ["string"],
+              ["gmcoin.meme twitter-verification"]
           );
+          const signature = await signer.signMessage(ethers.getBytes(rawMessage));
+          // const signature = await signer.signMessage(
+          //   "gmcoin.meme twitter-verification"
+          // );
           const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
