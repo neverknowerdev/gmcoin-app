@@ -15,15 +15,27 @@ export const NETWORK = process.env.NEXT_PUBLIC_NETWORK ;
 // Chain configurations
 export const CHAIN_CONFIGS = {
  
-  mainnet: {
-    id: 8453,
-    hexId: "0x2105",
+  
+
+  testnet: {
+    id: 84532,
+    hexId: "0x14a34",
     token: "ETH",
-    label: "Base",
-    rpcUrl: "https://mainnet.base.org",
-    wsRpcUrl: "wss://mainnet.base.org/ws",
-    blockExplorerUrl: "https://basescan.org"
+    label: "Base Sepolia",
+    rpcUrl: "https://sepolia.base.org",
+    wsRpcUrl: "wss://sepolia.base.org/ws",
+    blockExplorerUrl: "https://sepolia.basescan.org"
   }
+
+  // mainnet: {
+  //   id: 8453,
+  //   hexId: "0x2105",
+  //   token: "ETH",
+  //   label: "Base",
+  //   rpcUrl: "https://mainnet.base.org",
+  //   wsRpcUrl: "wss://mainnet.base.org/ws",
+  //   blockExplorerUrl: "https://basescan.org"
+  // }
 };
 
 // Get current chain config based on environment

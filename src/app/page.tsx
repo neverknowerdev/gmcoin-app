@@ -62,13 +62,7 @@ const Dashboard = () => {
     }
   }, []);
 
-  useEffect(() => {
-    // Check if userAuthenticated is true in localStorage
-    const isAuthenticated = localStorage.getItem("userAuthenticated") === "true";
-    if (!isAuthenticated) {
-      router.push("/connect");
-    }
-  }, [router]);
+ 
   
   const loadTokenBalance = async () => {
     if (!walletAddress) {
@@ -94,7 +88,6 @@ const Dashboard = () => {
       const formattedBalance = ethers.formatUnits(rawBalance, decimals);
       setTokenBalance(formattedBalance);
     } catch (error) {
-      console.error("error loading GM balance:", error);
       setTokenBalance("0.00");
     } finally {
       setIsLoading(false);
@@ -111,7 +104,16 @@ const Dashboard = () => {
     try {
       await web3Disconnect();
       updateWalletInfo("");
-      router.push("/");
+      const secondTime = localStorage.getItem("hasCompletedTwitterVerification");
+      // Clear all local storage items
+      localStorage.clear();
+      // Clear all session storage items
+      sessionStorage.clear();
+      if (secondTime) {
+        localStorage.setItem("hasCompletedTwitterVerification", secondTime);
+      }
+      // Redirect to the connect page
+      router.push("/connect");
     } catch (error) {
       console.error("Error disconnecting:", error);
     }

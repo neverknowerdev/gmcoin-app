@@ -61,7 +61,7 @@ export const useWeb3 = () => {
     // Initialize WalletConnect
     const walletConnect = walletConnectModule({
       projectId: WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
-      requiredChains: [8453], 
+      requiredChains: [84532], 
       dappUrl: window.location.origin
     });
 
@@ -114,7 +114,7 @@ export const useWeb3 = () => {
     if (!connectedWallet?.provider) {
       throw new Error('No wallet connected');
     }
-    return new ethers.BrowserProvider(connectedWallet.provider, 8453);
+    return new ethers.BrowserProvider(connectedWallet.provider, 84532);
   };
 
   const getSigner = async () => {
@@ -154,7 +154,7 @@ export const useWeb3 = () => {
         dappIconPath: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
       });
 
-      ambireLoginSDK.openLogin({chainId: 8453});  // Changed from 8453
+      ambireLoginSDK.openLogin({chainId: 84532});  // Changed from 
       console.log("Ambire Wallet created successfully!");
     } catch (error) {
       console.error("Error creating Ambire Wallet:", error);

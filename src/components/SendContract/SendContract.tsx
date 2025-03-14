@@ -11,6 +11,7 @@ import { useConnectWallet } from "@web3-onboard/react";
 
 interface SendContractProps {
   connectedWallet: { accounts: { address: string }[] } | null;
+  transactionStatus?: string; // Add this prop
   sendTransaction: () => Promise<void>;
   walletAddress: string;
   connect: () => Promise<void>;
@@ -20,6 +21,7 @@ interface SendContractProps {
 const SendContract: React.FC<SendContractProps> = ({
   connectedWallet,
   walletAddress,
+  transactionStatus,
   sendTransaction,
   connect,
   isFirstTimeUser = true, // Default to true if not specified
@@ -45,19 +47,6 @@ const SendContract: React.FC<SendContractProps> = ({
   const router = useRouter();
   
   // Check if user is a returning verified user
-  useEffect(() => {
-    const twitterUserId = localStorage.getItem("twitterUserId");
-    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const storedTwitterName = localStorage.getItem("twitterName");
-    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
-    
-    // Only auto-show success modal for returning users who have completed verification
-    if (twitterUserId && encryptedAccessToken && storedTwitterName && 
-        hasCompletedTx === "true" && !isFirstTimeUser) {
-      console.log("Returning verified user, showing dashboard popup immediately");
-      setModalState("success");
-    }
-  }, [isFirstTimeUser]);
   
   const {
     switchNetwork,
@@ -83,6 +72,16 @@ const SendContract: React.FC<SendContractProps> = ({
     }
   }, [walletAddress]);
   
+  //if we have hasCompletedTwitterVerification in localStorage then redirect to /
+  useEffect(() => {
+    const hasCompletedTwitterVerification = localStorage.getItem("hasCompletedTwitterVerification");
+    if (hasCompletedTwitterVerification === "true") {
+      router.push("/");
+      // Alternative if using React Router:
+      // navigate("/");
+    }
+  }, []);
+
   useEffect(() => {
     const storedVerifier = sessionStorage.getItem("verifier");
     const storedCode = sessionStorage.getItem("code");
@@ -93,6 +92,21 @@ const SendContract: React.FC<SendContractProps> = ({
       setTwitterName(storedUsername);
     }
   }, []);
+
+  
+  useEffect(() => {
+    if (transactionStatus === "success") {
+      // Only mark as verified after successful transaction
+      localStorage.setItem("hasCompletedTwitterVerification", "true");
+      
+      // Show success modal after transaction completes
+      setModalState("success");
+    } else if (transactionStatus === "error") {
+      // If parent component set error status, show error modal
+      setModalState("error");
+      setErrorMessage("Transaction failed");
+    }
+  }, [transactionStatus]);
   
   useEffect(() => {
     const updateWallet = (event?: StorageEvent) => {
@@ -179,19 +193,7 @@ const SendContract: React.FC<SendContractProps> = ({
 
   const handleSendTransaction = async () => {
     if (!isFormValid) return;
-
-    // Check if user is a returning verified user
-    const twitterUserId = localStorage.getItem("twitterUserId");
-    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const storedTwitterName = localStorage.getItem("twitterName");
-    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
-    
-    if (twitterUserId && encryptedAccessToken && storedTwitterName && hasCompletedTx === "true") {
-      console.log("Returning verified user, showing dashboard popup");
-      setModalState("success");
-      return;
-    }
-
+  
     console.log('wallet', wallet);
     if (!connectedWallet) {
       console.log("Wallet not connected. Trying to connect...");
@@ -202,43 +204,47 @@ const SendContract: React.FC<SendContractProps> = ({
       //@ts-ignore
       const provider = getProvider();
       const network = await provider.getNetwork();
-
+  
       console.log('sendTransaction', provider, network);
-
-      if (network.chainId.toString() !== "8453") {
+  
+      if (network.chainId.toString() !== "84532") {
         setIsWrongNetwork(true);
         setErrorMessage("Please switch to Base network");
         setModalState("wrongNetwork");
         return;
       }
-
+  
       setModalState("loading");
-
+      console.log("Starting transaction flow...");
+  
       try {
+        console.log("Calling sendTransaction()...");
         await sendTransaction();
-        
-        // Now that transaction is completed, mark user as verified
-        localStorage.setItem("hasCompletedTwitterVerification", "true");
-        
-        // Show success modal after transaction completes
-        setModalState("success");
-      } catch (error: any) {
-        // Check if we have the required data despite the error
-        const postErrorTwitterUserId = localStorage.getItem("twitterUserId");
-        const postErrorEncryptedToken = sessionStorage.getItem("encryptedAccessToken");
-        const postErrorTwitterName = localStorage.getItem("twitterName");
-        
-        if (postErrorTwitterUserId && postErrorEncryptedToken && postErrorTwitterName) {
-          console.log("Transaction failed but required data is available, showing success");
-          // Still mark as verified
-          localStorage.setItem("hasCompletedTwitterVerification", "true");
-          setModalState("success");
-        } else {
-          throw error; // Re-throw if we don't have the data
-        }
+        // Remove the transactionStatus check here - it will be handled by the useEffect
       }
-
-      sessionStorage.removeItem('accessToken');
+      catch (error: any) {
+        // Check if error is due to user rejection (MetaMask specific message)
+        if (
+          error.code === 4001 || // Standard rejection code
+          error.code === "ACTION_REJECTED" ||
+          (error.message && (
+            error.message.toLowerCase().includes("user denied") || 
+            error.message.toLowerCase().includes("user rejected") ||
+            error.message.toLowerCase().includes("cancelled") ||
+            error.message.toLowerCase().includes("canceled") ||
+            error.message.toLowerCase().includes("rejected") ||
+            error.message.toLowerCase().includes("rejection")
+          ))
+        ) {
+          // User cancelled - show error, don't set as verified
+          setErrorMessage("Transaction cancelled");
+          setModalState("error");
+          return;
+        }
+        
+        // For other errors, let them propagate to the catch block below
+        throw error;
+      }
     } catch (error: any) {
       console.error("Transaction error:", error);
       const errorMessage = getErrorMessage(error);
