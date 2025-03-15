@@ -58,9 +58,22 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateWalletInfo = async (address: string) => {
     setWalletAddress(address);
-    localStorage.setItem("walletAddress", address);
-    await Promise.all([fetchBalance(address)]);
+    if (address) {
+      localStorage.setItem("walletAddress", address);
+      await Promise.all([fetchBalance(address)]);
+    }
   };
+
+  // При инициализации проверяем сохраненные данные
+  useEffect(() => {
+    const storedAddress = localStorage.getItem("walletAddress");
+    const isAuthenticated =
+      localStorage.getItem("userAuthenticated") === "true";
+
+    if (storedAddress && isAuthenticated) {
+      updateWalletInfo(storedAddress);
+    }
+  }, []);
 
   return (
     <WalletContext.Provider

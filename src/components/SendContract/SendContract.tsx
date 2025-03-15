@@ -71,7 +71,7 @@ const SendContract: React.FC<SendContractProps> = ({
       );
       setModalState("success");
     }
-  }, [isFirstTimeUser]);
+  }, [isFirstTimeUser, walletAddress]);
 
   const {
     switchNetwork,
@@ -121,6 +121,9 @@ const SendContract: React.FC<SendContractProps> = ({
   useEffect(() => {
     if (walletAddress) {
       setWallet(walletAddress);
+      // Сохраняем адрес в localStorage при его изменении
+      localStorage.setItem("walletAddress", walletAddress);
+      localStorage.setItem("userAuthenticated", "true");
     }
   }, [walletAddress]);
 
@@ -381,44 +384,62 @@ const SendContract: React.FC<SendContractProps> = ({
     };
   }, []);
 
+  // Сохраняем адрес кошелька при его изменении
+  useEffect(() => {
+    if (connectedWallet?.accounts[0]?.address) {
+      const currentAddress = connectedWallet.accounts[0].address;
+      console.log("Сохраняем адрес кошелька в localStorage:", currentAddress);
+      localStorage.setItem("walletAddress", currentAddress);
+      localStorage.setItem("userAuthenticated", "true");
+    }
+  }, [connectedWallet]);
+
   const handleSendTransaction = async () => {
-    console.log("handleSendTransaction", isFormValid, connectedWallet);
-
-    if (!isFormValid) return;
-
-    // Check if user is a returning verified user
-    const twitterUserId = localStorage.getItem("twitterUserId");
-    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const storedTwitterName = localStorage.getItem("twitterName");
-    const hasCompletedTx = localStorage.getItem(
-      "hasCompletedTwitterVerification"
-    );
-
-    if (
-      twitterUserId &&
-      encryptedAccessToken &&
-      storedTwitterName &&
-      hasCompletedTx === "true"
-    ) {
-      console.log("Returning verified user, showing dashboard popup");
-      setModalState("success");
-      return;
-    }
-
-    console.log("wallet", wallet);
-    if (!connectedWallet) {
-      console.log("Wallet not connected. Trying to connect...");
-      await connect();
-      return;
-    }
-
     console.log("connected wallet", connectedWallet);
     try {
-      // Проверяем и обеспечиваем правильную сеть перед отправкой транзакции
-      const networkCorrect = await ensureCorrectNetwork();
-      if (!networkCorrect) {
-        console.log("Не удалось обеспечить правильную сеть");
-        return;
+      // Проверяем, подключен ли кошелек
+      if (!connectedWallet) {
+        console.log("Кошелек не подключен, пытаемся восстановить подключение");
+
+        // Проверяем, есть ли сохраненный адрес кошелька
+        const storedWalletAddress = localStorage.getItem("walletAddress");
+        if (storedWalletAddress) {
+          // Если есть сохраненный адрес, пытаемся восстановить подключение
+          try {
+            await connect();
+            // После подключения проверяем сеть
+            const networkCorrect = await ensureCorrectNetwork();
+            if (!networkCorrect) {
+              console.log("Не удалось обеспечить правильную сеть");
+              return;
+            }
+          } catch (error) {
+            console.error("Ошибка при восстановлении подключения:", error);
+            setErrorMessage("Пожалуйста, подключите кошелек");
+            setModalState("error");
+            return;
+          }
+        } else {
+          setErrorMessage("Пожалуйста, подключите кошелек");
+          setModalState("error");
+          return;
+        }
+      } else {
+        // Если кошелек подключен, сохраняем адрес в localStorage
+        if (connectedWallet.accounts[0]?.address) {
+          localStorage.setItem(
+            "walletAddress",
+            connectedWallet.accounts[0].address
+          );
+          localStorage.setItem("userAuthenticated", "true");
+        }
+
+        // Если кошелек подключен, проверяем сеть
+        const networkCorrect = await ensureCorrectNetwork();
+        if (!networkCorrect) {
+          console.log("Не удалось обеспечить правильную сеть");
+          return;
+        }
       }
 
       setModalState("loading");
@@ -687,7 +708,27 @@ const SendContract: React.FC<SendContractProps> = ({
 
               <button
                 className={styles.successButton}
-                onClick={() => router.push("/")}
+                onClick={() => {
+                  // Убедимся, что все данные сохранены перед переходом
+                  if (connectedWallet?.accounts[0]?.address) {
+                    localStorage.setItem(
+                      "walletAddress",
+                      connectedWallet.accounts[0].address
+                    );
+                  }
+
+                  // Устанавливаем флаг аутентификации
+                  localStorage.setItem("userAuthenticated", "true");
+
+                  // Сохраняем информацию о том, что пользователь завершил верификацию
+                  localStorage.setItem(
+                    "hasCompletedTwitterVerification",
+                    "true"
+                  );
+
+                  // Переходим на дашборд
+                  router.push("/");
+                }}
               >
                 GO TO DASHBOARD 🚀
               </button>

@@ -39,18 +39,29 @@ const Dashboard = () => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedAddress = localStorage.getItem("walletAddress");
-    if (storedAddress) {
-      setWalletAddress(storedAddress);
-    }
-  }, []);
-  useEffect(() => {
-    const storedUser = sessionStorage.getItem("verifier");
-    const storedCode = sessionStorage.getItem("code");
-    if (storedUser && storedCode) {
-      setUser(storedUser);
-      setCode(storedCode);
-    }
+    const checkAuthAndWallet = async () => {
+      const isAuthenticated =
+        localStorage.getItem("userAuthenticated") === "true";
+      const storedWalletAddress = localStorage.getItem("walletAddress");
+      const hasCompletedVerification =
+        localStorage.getItem("hasCompletedTwitterVerification") === "true";
+
+      if (!isAuthenticated || !storedWalletAddress) {
+        router.push("/connect");
+        return;
+      }
+
+      if (storedWalletAddress) {
+        setWalletAddress(storedWalletAddress);
+        updateWalletInfo(storedWalletAddress);
+      }
+
+      if (storedWalletAddress) {
+        loadTokenBalance();
+      }
+    };
+
+    checkAuthAndWallet();
   }, []);
 
   useEffect(() => {
@@ -64,54 +75,60 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Check if userAuthenticated is true in localStorage
-    const isAuthenticated = localStorage.getItem("userAuthenticated") === "true";
+    const isAuthenticated =
+      localStorage.getItem("userAuthenticated") === "true";
     if (!isAuthenticated) {
       router.push("/connect");
     }
   }, [router]);
-  
+
   const loadTokenBalance = async () => {
-    if (!walletAddress) {
+    const storedWalletAddress = localStorage.getItem("walletAddress");
+    if (!storedWalletAddress) {
       console.error("Wallet address not found");
       return;
     }
-    setIsLoading(true);
 
+    setIsLoading(true);
     try {
       const signer = await getSigner();
-      const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
-      const rawBalance = await contract.balanceOf(walletAddress);
-      console.log("Raw balance:", rawBalance);
-
-      let decimals = 18;
-      if (typeof contract.decimals === "function") {
-        decimals = await contract.decimals();
-      } else {
-        console.warn("Decimals method not supported, defaulting to 18");
+      if (!signer) {
+        console.log("No signer available, using stored balance");
+        const storedBalance = localStorage.getItem("tokenBalance");
+        if (storedBalance) {
+          setTokenBalance(storedBalance);
+        }
+        return;
       }
 
+      const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      const rawBalance = await contract.balanceOf(storedWalletAddress);
+      const decimals = await contract.decimals().catch(() => 18);
       const formattedBalance = ethers.formatUnits(rawBalance, decimals);
+
       setTokenBalance(formattedBalance);
+      localStorage.setItem("tokenBalance", formattedBalance);
     } catch (error) {
-      console.error("error loading GM balance:", error);
-      setTokenBalance("0.00");
+      console.error("Error loading GM balance:", error);
+      const storedBalance = localStorage.getItem("tokenBalance");
+      setTokenBalance(storedBalance || "0.00");
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (walletAddress) {
-      loadTokenBalance();
-    }
-  }, [walletAddress]);
-
   const handleDisconnect = async () => {
     try {
       await web3Disconnect();
       updateWalletInfo("");
-      router.push("/");
+
+      localStorage.removeItem("walletAddress");
+      localStorage.removeItem("userAuthenticated");
+      localStorage.removeItem("hasCompletedTwitterVerification");
+      localStorage.removeItem("tokenBalance");
+      localStorage.removeItem("twitterName");
+
+      router.push("/connect");
     } catch (error) {
       console.error("Error disconnecting:", error);
     }
