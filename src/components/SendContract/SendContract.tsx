@@ -395,111 +395,35 @@ const SendContract: React.FC<SendContractProps> = ({
   }, [connectedWallet]);
 
   const handleSendTransaction = async () => {
-    console.log("connected wallet", connectedWallet);
     try {
-      // Проверяем, подключен ли кошелек
-      if (!connectedWallet) {
-        console.log("Кошелек не подключен, пытаемся восстановить подключение");
-
-        // Проверяем, есть ли сохраненный адрес кошелька
-        const storedWalletAddress = localStorage.getItem("walletAddress");
-        if (storedWalletAddress) {
-          // Если есть сохраненный адрес, пытаемся восстановить подключение
-          try {
-            await connect();
-            // После подключения проверяем сеть
-            const networkCorrect = await ensureCorrectNetwork();
-            if (!networkCorrect) {
-              console.log("Не удалось обеспечить правильную сеть");
-              return;
-            }
-          } catch (error) {
-            console.error("Ошибка при восстановлении подключения:", error);
-            setErrorMessage("Пожалуйста, подключите кошелек");
-            setModalState("error");
-            return;
-          }
-        } else {
-          setErrorMessage("Пожалуйста, подключите кошелек");
-          setModalState("error");
-          return;
-        }
-      } else {
-        // Если кошелек подключен, сохраняем адрес в localStorage
-        if (connectedWallet.accounts[0]?.address) {
-          localStorage.setItem(
-            "walletAddress",
-            connectedWallet.accounts[0].address
-          );
-          localStorage.setItem("userAuthenticated", "true");
-        }
-
-        // Если кошелек подключен, проверяем сеть
-        const networkCorrect = await ensureCorrectNetwork();
-        if (!networkCorrect) {
-          console.log("Не удалось обеспечить правильную сеть");
-          return;
-        }
-      }
-
       setModalState("loading");
 
-      try {
-        // Еще раз проверяем сеть непосредственно перед отправкой транзакции
-        const finalNetworkCheck = await checkNetwork();
-        if (!finalNetworkCheck) {
-          console.log("Сеть изменилась перед отправкой транзакции");
-          setIsWrongNetwork(true);
-          setErrorMessage("Пожалуйста, переключитесь на сеть Base");
-          setModalState("wrongNetwork");
-          return;
-        }
+      // Проверяем сеть перед отправкой транзакции
+      const networkCorrect = await ensureCorrectNetwork();
+      if (!networkCorrect) return;
 
-        await sendTransaction();
+      await sendTransaction();
 
-        // Now that transaction is completed, mark user as verified
-        localStorage.setItem("hasCompletedTwitterVerification", "true");
-
-        // Show success modal after transaction completes
-        setModalState("success");
-      } catch (error: any) {
-        // Проверяем, не связана ли ошибка с изменением сети
-        if (error.message && error.message.includes("network changed")) {
-          console.error("Ошибка изменения сети:", error);
-          setIsWrongNetwork(true);
-          setErrorMessage(
-            "Сеть изменилась во время транзакции. Пожалуйста, переключитесь на сеть Base и попробуйте снова."
-          );
-          setModalState("wrongNetwork");
-          return;
-        }
-
-        // Check if we have the required data despite the error
-        const postErrorTwitterUserId = localStorage.getItem("twitterUserId");
-        const postErrorEncryptedToken = sessionStorage.getItem(
-          "encryptedAccessToken"
-        );
-        const postErrorTwitterName = localStorage.getItem("twitterName");
-
-        if (
-          postErrorTwitterUserId &&
-          postErrorEncryptedToken &&
-          postErrorTwitterName
-        ) {
-          console.log(
-            "Transaction failed but required data is available, showing success"
-          );
-          // Still mark as verified
-          localStorage.setItem("hasCompletedTwitterVerification", "true");
-          setModalState("success");
-        } else {
-          throw error; // Re-throw if we don't have the data
-        }
-      }
-
-      sessionStorage.removeItem("accessToken");
+      // Сохраняем статус верификации только после успешной транзакции
+      localStorage.setItem("hasCompletedTwitterVerification", "true");
+      setModalState("success");
     } catch (error: any) {
       console.error("Transaction error:", error);
+
+      // Проверяем, была ли транзакция отклонена пользователем
+      if (
+        error.code === 4001 || // MetaMask user rejected
+        error.message?.includes("user rejected") ||
+        error.message?.includes("User denied") ||
+        error.message?.includes("User rejected") ||
+        error.message?.includes("cancelled")
+      ) {
+        // Просто закрываем модальное окно
+        setModalState(null);
+        return;
+      }
+
+      // Для других ошибок показываем сообщение об ошибке
       const errorMessage = getErrorMessage(error);
       setErrorMessage(errorMessage);
       setModalState("error");

@@ -119,16 +119,16 @@ const Dashboard = () => {
 
   const handleDisconnect = async () => {
     try {
+      // Отключаем кошелек
       await web3Disconnect();
       updateWalletInfo("");
 
-      localStorage.removeItem("walletAddress");
-      localStorage.removeItem("userAuthenticated");
-      localStorage.removeItem("hasCompletedTwitterVerification");
-      localStorage.removeItem("tokenBalance");
-      localStorage.removeItem("twitterName");
+      // Очищаем все данные аутентификации
+      localStorage.clear(); // Очищаем все данные
+      sessionStorage.clear(); // Очищаем все данные сессии
 
-      router.push("/connect");
+      // Используем window.location.href вместо router.push для полной перезагрузки
+      window.location.href = "/connect";
     } catch (error) {
       console.error("Error disconnecting:", error);
     }
