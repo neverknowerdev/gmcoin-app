@@ -39,15 +39,16 @@
 
 /* Стили ошибки */
 .errorMessage {
-  margin-top: 20px;
-  padding: 15px;
-  background: rgba(255, 69, 69, 0.2);
-  border: 2px solid rgba(255, 69, 69, 0.7);
+  margin-top: 8px;
+  padding: 10px;
+  background: rgba(255, 69, 69, 0.1);
+  border: 1px solid rgba(255, 69, 69, 0.5);
   color: rgba(255, 69, 69, 1);
-  font-weight: bold;
-  border-radius: 10px;
-  text-align: center;
-  font-size: 18px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
 }
 
 .sadEmoji {
@@ -944,4 +945,31 @@
   .balloon {
     bottom: -20px !important;
   }
+}
+
+/* Стили для индикатора загрузки Twitter */
+.loadingIndicator {
+  margin-top: 8px;
+  color: #3498db;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Стили для кнопки повторной попытки */
+.retryButton {
+  margin-left: auto;
+  background: rgba(255, 69, 69, 0.2);
+  border: 1px solid rgba(255, 69, 69, 0.5);
+  color: rgba(255, 69, 69, 1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.retryButton:hover {
+  background: rgba(255, 69, 69, 0.3);
 }

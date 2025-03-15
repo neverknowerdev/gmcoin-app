@@ -8,7 +8,7 @@ import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
 import { useConnectWallet } from "@web3-onboard/react";
-import {CURRENT_CHAIN} from "@/src/config";
+import { CURRENT_CHAIN } from "@/src/config";
 
 interface SendContractProps {
   connectedWallet: { accounts: { address: string }[] } | null;
@@ -43,28 +43,43 @@ const SendContract: React.FC<SendContractProps> = ({
   );
   const [code, setCode] = useState(() => sessionStorage.getItem("code") || "");
   const [isTwitterLoading, setIsTwitterLoading] = useState(false);
+  const [twitterError, setTwitterError] = useState<string | null>(null);
   const router = useRouter();
-  
+
+  // Добавляем флаг для отслеживания выполненных запросов авторизации
+  const [authAttempted, setAuthAttempted] = useState(false);
+
   // Check if user is a returning verified user
   useEffect(() => {
     const twitterUserId = localStorage.getItem("twitterUserId");
     const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
     const storedTwitterName = localStorage.getItem("twitterName");
-    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
-    
+    const hasCompletedTx = localStorage.getItem(
+      "hasCompletedTwitterVerification"
+    );
+
     // Only auto-show success modal for returning users who have completed verification
-    if (twitterUserId && encryptedAccessToken && storedTwitterName && 
-        hasCompletedTx === "true" && !isFirstTimeUser) {
-      console.log("Returning verified user, showing dashboard popup immediately");
+    if (
+      twitterUserId &&
+      encryptedAccessToken &&
+      storedTwitterName &&
+      hasCompletedTx === "true" &&
+      !isFirstTimeUser
+    ) {
+      console.log(
+        "Returning verified user, showing dashboard popup immediately"
+      );
       setModalState("success");
     }
   }, [isFirstTimeUser]);
-  
+
   const {
     switchNetwork,
     reconnectWallet,
     reconnectTwitter,
     fetchTwitterAccessToken,
+    checkNetwork,
+    setupNetworkMonitoring,
   } = useWalletActions({
     connect,
     setModalState,
@@ -77,13 +92,38 @@ const SendContract: React.FC<SendContractProps> = ({
 
   const handleReconnectWalletClick = () => reconnectWallet(setWalletAdd);
   const handleReconnectTwitterClick = () => reconnectTwitter();
-  
+
+  // Мониторинг изменений сети
+  useEffect(() => {
+    // Устанавливаем слушатель изменений сети
+    const cleanup = setupNetworkMonitoring();
+
+    // Проверяем сеть при монтировании компонента
+    checkNetwork();
+
+    return cleanup;
+  }, [setupNetworkMonitoring, checkNetwork]);
+
+  // Проверка сети перед отправкой транзакции
+  const ensureCorrectNetwork = async () => {
+    // Проверяем текущую сеть
+    const isCorrectNetwork = await checkNetwork();
+
+    if (!isCorrectNetwork) {
+      console.log("Неправильная сеть, пытаемся переключить...");
+      setModalState("wrongNetwork");
+      return false;
+    }
+
+    return true;
+  };
+
   useEffect(() => {
     if (walletAddress) {
       setWallet(walletAddress);
     }
   }, [walletAddress]);
-  
+
   useEffect(() => {
     const storedVerifier = sessionStorage.getItem("verifier");
     const storedCode = sessionStorage.getItem("code");
@@ -94,7 +134,7 @@ const SendContract: React.FC<SendContractProps> = ({
       setTwitterName(storedUsername);
     }
   }, []);
-  
+
   useEffect(() => {
     const updateWallet = (event?: StorageEvent) => {
       if (!event || event.key === "walletAddress") {
@@ -111,21 +151,21 @@ const SendContract: React.FC<SendContractProps> = ({
       window.removeEventListener("storage", updateWallet);
     };
   }, []);
-  
+
   useEffect(() => {
     if (verifier) {
       sessionStorage.setItem("verifier", verifier);
     }
   }, [verifier]);
-  
+
   const isFormValid = walletAdd?.trim() !== "";
-  
+
   const formatAddress = (address: string) => {
     if (!address || address === "Please connect wallet")
       return "Please connect wallet";
     return `${address.slice(0, 8)}...${address.slice(-4)}`;
   };
-  
+
   const formatTwitter = (twitterName: string | null) => {
     if (!twitterName) return "..";
 
@@ -136,50 +176,213 @@ const SendContract: React.FC<SendContractProps> = ({
     return twitterName;
   };
 
+  // Проверяем, есть ли код авторизации в URL
+  useEffect(() => {
+    const checkUrlForAuthCode = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const authCode = urlParams.get("code");
+      const state = urlParams.get("state");
+
+      if (authCode && state) {
+        console.log("Обнаружен код авторизации в URL, сохраняем...");
+
+        // Сохраняем код в sessionStorage и добавляем в список обработанных кодов
+        sessionStorage.setItem("code", authCode);
+
+        // Инициализируем массив обработанных кодов, если его нет
+        const processedCodes = JSON.parse(
+          sessionStorage.getItem("processed_auth_codes") || "[]"
+        );
+
+        // Добавляем текущий код в список обработанных, если его там еще нет
+        if (!processedCodes.includes(authCode)) {
+          processedCodes.push(authCode);
+          sessionStorage.setItem(
+            "processed_auth_codes",
+            JSON.stringify(processedCodes)
+          );
+        }
+
+        // Проверяем соответствие state
+        const savedState = sessionStorage.getItem("oauth_state");
+        if (savedState && savedState === state) {
+          console.log("State соответствует, продолжаем авторизацию");
+        } else {
+          console.warn("State не соответствует, возможна CSRF-атака");
+          // В случае несоответствия state, очищаем данные авторизации
+          sessionStorage.removeItem("code");
+          sessionStorage.removeItem("verifier");
+          return;
+        }
+
+        // Очищаем URL от параметров авторизации
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+
+        // Перезагружаем код и верификатор
+        setCode(authCode);
+        const storedVerifier = sessionStorage.getItem("verifier");
+        if (storedVerifier) {
+          setVerifier(storedVerifier);
+        } else {
+          console.warn("Верификатор не найден в sessionStorage");
+        }
+      }
+    };
+
+    // Выполняем проверку URL только один раз при монтировании компонента
+    checkUrlForAuthCode();
+  }, []);
+
+  // Обработка получения токена Twitter
   useEffect(() => {
     // Skip token fetch if we already have a Twitter username or missing credentials
     const twitterNameExists = !!twitterName;
-    const accessTokenExists = !!sessionStorage.getItem('accessToken');
+    const accessTokenExists = !!sessionStorage.getItem("accessToken");
+    const authProcessed = sessionStorage.getItem("auth_processed") === "true";
+    const authProcessing = sessionStorage.getItem("auth_processing") === "true";
 
-    if ((twitterNameExists || accessTokenExists) || !code || !verifier) {
-      return;
+    // Пропускаем запрос, если:
+    // 1. У нас уже есть имя пользователя Twitter или токен доступа
+    // 2. Отсутствует код или верификатор
+    // 3. Авторизация уже была обработана в этой сессии
+    // 4. Авторизация в процессе обработки
+    // 5. Уже была попытка авторизации в этом компоненте
+    if (
+      twitterNameExists ||
+      accessTokenExists ||
+      !code ||
+      !verifier ||
+      authProcessed ||
+      authProcessing ||
+      authAttempted
+    ) {
+      if (
+        code &&
+        verifier &&
+        !authProcessed &&
+        !authProcessing &&
+        !authAttempted
+      ) {
+        console.log("Условия для запроса токена выполнены, продолжаем...");
+      } else {
+        console.log("Пропускаем запрос токена Twitter:", {
+          twitterNameExists,
+          accessTokenExists,
+          hasCode: !!code,
+          hasVerifier: !!verifier,
+          authProcessed,
+          authProcessing,
+          authAttempted,
+        });
+        return;
+      }
     }
 
     console.log("Starting Twitter token fetch with fresh code...");
+    console.log(
+      "Code:",
+      code.substring(0, 5) + "..." + code.substring(code.length - 5)
+    );
+    console.log(
+      "Verifier:",
+      verifier.substring(0, 5) + "..." + verifier.substring(verifier.length - 5)
+    );
+
+    // Устанавливаем флаг, что попытка авторизации была сделана
+    setAuthAttempted(true);
+    // Отмечаем, что авторизация обрабатывается
+    sessionStorage.setItem("auth_processing", "true");
+
     setIsTwitterLoading(true);
+    setTwitterError(null);
 
-    fetchTwitterAccessToken(code, verifier)
-      .then(() => {
-        // Clear code and verifier only after successful processing
-        console.log("Twitter auth successful, clearing credentials");
-        setCode('');
-        setVerifier('');
-        sessionStorage.removeItem('verifier');
-        sessionStorage.removeItem('code');
-        
-        // Don't automatically show success for first-time users
-        // They need to complete the transaction first
-      })
-      .catch(error => {
-        console.error("Failed to fetch Twitter token:", error);
+    // Добавляем небольшую задержку перед запросом токена
+    setTimeout(() => {
+      fetchTwitterAccessToken(code, verifier)
+        .then((username) => {
+          // Clear code and verifier only after successful processing
+          console.log("Twitter auth successful, username:", username);
+          setCode("");
+          setVerifier("");
+          sessionStorage.removeItem("verifier");
+          sessionStorage.removeItem("code");
+          sessionStorage.removeItem("redirect_uri");
+          sessionStorage.removeItem("oauth_state");
 
-        // If we got an invalid code error, we should also clear the code
-        // to prevent repeated failed attempts
-        if (error.message && error.message.includes("500")) {
-          console.log("Clearing invalid Twitter auth code");
-          setCode('');
-          setVerifier('');
-          sessionStorage.removeItem('verifier');
-          sessionStorage.removeItem('code');
-        }
-      })
-      .finally(() => {
-        setIsTwitterLoading(false);
-      });
-  }, [code, verifier, fetchTwitterAccessToken, twitterName]);
+          // Отмечаем, что авторизация была успешно обработана
+          sessionStorage.setItem("auth_processed", "true");
+          sessionStorage.removeItem("auth_processing");
+
+          // Обновляем имя пользователя в компоненте
+          setTwitterName(username);
+
+          // Don't automatically show success for first-time users
+          // They need to complete the transaction first
+        })
+        .catch((error) => {
+          // Форматируем сообщение об ошибке для пользователя
+          let userErrorMessage = "Ошибка при получении токена Twitter";
+
+          if (error.message) {
+            if (
+              error.message.includes("invalid_request") ||
+              error.message.includes("authorization code")
+            ) {
+              userErrorMessage =
+                "Код авторизации Twitter недействителен или истек. Пожалуйста, попробуйте снова.";
+            } else if (error.message.includes("500")) {
+              userErrorMessage =
+                "Ошибка сервера при авторизации Twitter. Пожалуйста, попробуйте позже.";
+            } else if (error.message.includes("401")) {
+              userErrorMessage =
+                "Ошибка авторизации Twitter. Пожалуйста, попробуйте снова.";
+            }
+          }
+
+          setTwitterError(userErrorMessage);
+
+          // If we got an invalid code error, we should also clear the code
+          // to prevent repeated failed attempts
+          if (
+            error.message &&
+            (error.message.includes("500") ||
+              error.message.includes("401") ||
+              error.message.includes("invalid_request") ||
+              error.message.includes("authorization code"))
+          ) {
+            console.log("Clearing invalid Twitter auth code");
+            setCode("");
+            setVerifier("");
+            sessionStorage.removeItem("verifier");
+            sessionStorage.removeItem("code");
+            sessionStorage.removeItem("redirect_uri");
+            sessionStorage.removeItem("oauth_state");
+            sessionStorage.removeItem("auth_processed");
+            sessionStorage.removeItem("auth_processing");
+          }
+        })
+        .finally(() => {
+          setIsTwitterLoading(false);
+        });
+    }, 500); // Задержка в 500 мс для стабильности
+  }, [code, verifier, fetchTwitterAccessToken, twitterName, authAttempted]);
+
+  // Очистка флага обработки при размонтировании компонента
+  useEffect(() => {
+    return () => {
+      // Если процесс авторизации не был завершен, очищаем флаг
+      if (
+        sessionStorage.getItem("auth_processing") === "true" &&
+        sessionStorage.getItem("auth_processed") !== "true"
+      ) {
+        sessionStorage.removeItem("auth_processing");
+      }
+    };
+  }, []);
 
   const handleSendTransaction = async () => {
-    console.log('handleSendTransaction', isFormValid, connectedWallet);
+    console.log("handleSendTransaction", isFormValid, connectedWallet);
 
     if (!isFormValid) return;
 
@@ -187,55 +390,84 @@ const SendContract: React.FC<SendContractProps> = ({
     const twitterUserId = localStorage.getItem("twitterUserId");
     const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
     const storedTwitterName = localStorage.getItem("twitterName");
-    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
-    
-    if (twitterUserId && encryptedAccessToken && storedTwitterName && hasCompletedTx === "true") {
+    const hasCompletedTx = localStorage.getItem(
+      "hasCompletedTwitterVerification"
+    );
+
+    if (
+      twitterUserId &&
+      encryptedAccessToken &&
+      storedTwitterName &&
+      hasCompletedTx === "true"
+    ) {
       console.log("Returning verified user, showing dashboard popup");
       setModalState("success");
       return;
     }
 
-    console.log('wallet', wallet);
+    console.log("wallet", wallet);
     if (!connectedWallet) {
       console.log("Wallet not connected. Trying to connect...");
       await connect();
       return;
     }
 
-    console.log('connected wallet', connectedWallet);
+    console.log("connected wallet", connectedWallet);
     try {
-      //@ts-ignore
-      const provider = getProvider();
-      console.log('provider', provider);
-      const network = await provider.getNetwork();
-
-      console.log('sendTransaction', network.chainId.toString(), provider);
-
-      if (network.chainId.toString() !== CURRENT_CHAIN.id.toString()) {
-        setIsWrongNetwork(true);
-        setErrorMessage("Please switch to Base network");
-        setModalState("wrongNetwork");
+      // Проверяем и обеспечиваем правильную сеть перед отправкой транзакции
+      const networkCorrect = await ensureCorrectNetwork();
+      if (!networkCorrect) {
+        console.log("Не удалось обеспечить правильную сеть");
         return;
       }
 
       setModalState("loading");
 
       try {
+        // Еще раз проверяем сеть непосредственно перед отправкой транзакции
+        const finalNetworkCheck = await checkNetwork();
+        if (!finalNetworkCheck) {
+          console.log("Сеть изменилась перед отправкой транзакции");
+          setIsWrongNetwork(true);
+          setErrorMessage("Пожалуйста, переключитесь на сеть Base");
+          setModalState("wrongNetwork");
+          return;
+        }
+
         await sendTransaction();
-        
+
         // Now that transaction is completed, mark user as verified
         localStorage.setItem("hasCompletedTwitterVerification", "true");
-        
+
         // Show success modal after transaction completes
         setModalState("success");
       } catch (error: any) {
+        // Проверяем, не связана ли ошибка с изменением сети
+        if (error.message && error.message.includes("network changed")) {
+          console.error("Ошибка изменения сети:", error);
+          setIsWrongNetwork(true);
+          setErrorMessage(
+            "Сеть изменилась во время транзакции. Пожалуйста, переключитесь на сеть Base и попробуйте снова."
+          );
+          setModalState("wrongNetwork");
+          return;
+        }
+
         // Check if we have the required data despite the error
         const postErrorTwitterUserId = localStorage.getItem("twitterUserId");
-        const postErrorEncryptedToken = sessionStorage.getItem("encryptedAccessToken");
+        const postErrorEncryptedToken = sessionStorage.getItem(
+          "encryptedAccessToken"
+        );
         const postErrorTwitterName = localStorage.getItem("twitterName");
-        
-        if (postErrorTwitterUserId && postErrorEncryptedToken && postErrorTwitterName) {
-          console.log("Transaction failed but required data is available, showing success");
+
+        if (
+          postErrorTwitterUserId &&
+          postErrorEncryptedToken &&
+          postErrorTwitterName
+        ) {
+          console.log(
+            "Transaction failed but required data is available, showing success"
+          );
           // Still mark as verified
           localStorage.setItem("hasCompletedTwitterVerification", "true");
           setModalState("success");
@@ -244,7 +476,7 @@ const SendContract: React.FC<SendContractProps> = ({
         }
       }
 
-      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem("accessToken");
     } catch (error: any) {
       console.error("Transaction error:", error);
       const errorMessage = getErrorMessage(error);
@@ -416,7 +648,9 @@ const SendContract: React.FC<SendContractProps> = ({
               <img src="/sun.png" alt="Sun" className={styles.goodEmoji} />
               <a
                 className={styles.twittButton}
-                href={encodeURI("https://x.com/intent/tweet?text=Now I can get $GM for every \"gm\" tweet - awesome 🌀&via=gmcoin_meme")}
+                href={encodeURI(
+                  'https://x.com/intent/tweet?text=Now I can get $GM for every "gm" tweet - awesome 🌀&via=gmcoin_meme'
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
               >

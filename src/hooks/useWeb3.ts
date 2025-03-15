@@ -1,75 +1,84 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from "react";
 import { init, useSetChain, useWallets } from "@web3-onboard/react";
 
-import injectedModule from '@web3-onboard/injected-wallets';
-import metamaskSDK from '@web3-onboard/metamask';
-import phantomModule from '@web3-onboard/phantom';
-import walletConnectModule from '@web3-onboard/walletconnect';
+import injectedModule from "@web3-onboard/injected-wallets";
+import metamaskSDK from "@web3-onboard/metamask";
+import phantomModule from "@web3-onboard/phantom";
+import walletConnectModule from "@web3-onboard/walletconnect";
 // Add Coinbase Wallet import
-import coinbaseWalletModule from '@web3-onboard/coinbase';
-import { AmbireWalletModule } from '@ambire/login-sdk-web3-onboard';
-import { AmbireLoginSDK } from '@ambire/login-sdk-core'
-import { CHAINS, WALLETCONNECT_PROJECT_ID } from '@/src/config';
-import { ethers } from 'ethers';
-import {Chain, OnboardAPI, WalletState} from "@web3-onboard/core";
-import { CONTRACT_ADDRESS, CONTRACT_ABI, API_URL, CURRENT_CHAIN } from "@/src/config";
-
+import coinbaseWalletModule from "@web3-onboard/coinbase";
+import { AmbireWalletModule } from "@ambire/login-sdk-web3-onboard";
+import { AmbireLoginSDK } from "@ambire/login-sdk-core";
+import { CHAINS, WALLETCONNECT_PROJECT_ID } from "@/src/config";
+import { ethers } from "ethers";
+import { Chain, OnboardAPI, WalletState } from "@web3-onboard/core";
+import {
+  CONTRACT_ADDRESS,
+  CONTRACT_ABI,
+  API_URL,
+  CURRENT_CHAIN,
+} from "@/src/config";
 
 export const useWeb3 = () => {
-  const [web3Onboard, setWeb3Onboard] = useState<OnboardAPI|null>(null);
-  const [connectedWallet, setConnectedWallet] = useState<WalletState | null>(null);
+  const [web3Onboard, setWeb3Onboard] = useState<OnboardAPI | null>(null);
+  const [connectedWallet, setConnectedWallet] = useState<WalletState | null>(
+    null
+  );
   const [connectedChain, setConnectedChain] = useState<Chain | null>(null);
 
   useEffect(() => {
     if (!web3Onboard) return;
 
-    const walletsSub = web3Onboard.state.select('wallets').subscribe((wallets:any) => {
-      console.log('walletsSub', wallets.length, wallets);
-      if (wallets && wallets.length > 0) {
-        setConnectedWallet(wallets[0]);
-        if (wallets[0].chains && wallets[0].chains.length > 0) {
-          setConnectedChain(wallets[0].chains[0]);
+    const walletsSub = web3Onboard.state
+      .select("wallets")
+      .subscribe((wallets: any) => {
+        console.log("walletsSub", wallets.length, wallets);
+        if (wallets && wallets.length > 0) {
+          setConnectedWallet(wallets[0]);
+          if (wallets[0].chains && wallets[0].chains.length > 0) {
+            setConnectedChain(wallets[0].chains[0]);
+          }
+        } else {
+          setConnectedWallet(null);
+          setConnectedChain(null);
         }
-      } else {
-        setConnectedWallet(null);
-        setConnectedChain(null);
-      }
-    });
+      });
 
     return () => {
       walletsSub.unsubscribe();
     };
   }, [web3Onboard]);
-  
+
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     const ambireWallet = AmbireWalletModule({
-      dappName: 'GM',
-      dappIconPath: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
+      dappName: "GM",
+      dappIconPath:
+        "https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg",
     });
 
     const metamaskSDKWallet = metamaskSDK({
       options: {
         extensionOnly: false,
         dappMetadata: {
-          name: 'GM',
+          name: "GM",
         },
       },
     });
 
     // Initialize WalletConnect
     const walletConnect = walletConnectModule({
-      projectId: WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
+      projectId: WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID",
       requiredChains: [CURRENT_CHAIN.id],
-      dappUrl: window.location.origin
+      dappUrl: window.location.origin,
     });
 
     // Initialize Coinbase Wallet with the correct properties
     const coinbaseWallet = coinbaseWalletModule({
       darkMode: false,
       enableMobileWalletLink: true,
-      reloadOnDisconnect: false
+      reloadOnDisconnect: false,
     });
 
     const phantom = phantomModule();
@@ -77,7 +86,13 @@ export const useWeb3 = () => {
 
     const onboard = init({
       // Add coinbaseWallet to the wallets array
-      wallets: [injected, metamaskSDKWallet, phantom, walletConnect, coinbaseWallet],
+      wallets: [
+        injected,
+        metamaskSDKWallet,
+        phantom,
+        walletConnect,
+        coinbaseWallet,
+      ],
       connect: {
         showSidebar: true,
         autoConnectLastWallet: true,
@@ -88,18 +103,18 @@ export const useWeb3 = () => {
           token: CURRENT_CHAIN.token,
           label: CURRENT_CHAIN.label,
           rpcUrl: CURRENT_CHAIN.rpcUrl,
-        }
+        },
       ],
-      
+
       appMetadata: {
-        name: 'GM',
-        icon: 'https://i.ibb.co/8DgJBg1H/Ac-WFYz-Ul-400x400-5.jpg',
-        description: 'GM ☀️ first tweet&mint coin',
+        name: "GM",
+        icon: "https://i.ibb.co/8DgJBg1H/Ac-WFYz-Ul-400x400-5.jpg",
+        description: "GM ☀️ first tweet&mint coin",
         recommendedInjectedWallets: [
-          { name: 'MetaMask', url: 'https://metamask.io' },
-          { name: 'Coinbase', url: 'https://wallet.coinbase.com/' },
+          { name: "MetaMask", url: "https://metamask.io" },
+          { name: "Coinbase", url: "https://wallet.coinbase.com/" },
         ],
-        gettingStartedGuide: 'getting started guide',
+        gettingStartedGuide: "getting started guide",
       },
       accountCenter: {
         desktop: {
@@ -110,53 +125,145 @@ export const useWeb3 = () => {
 
     setWeb3Onboard(onboard);
   }, []);
-  const getProvider = () => {
+  const getProvider = useCallback(() => {
     if (!connectedWallet?.provider) {
-      throw new Error('No wallet connected');
+      console.error("No wallet connected");
+      return null;
     }
-    // return connectedWallet.provider;
-    return new ethers.BrowserProvider(connectedWallet.provider, CURRENT_CHAIN.id);
-  };
+
+    try {
+      // Проверяем, что кошелек подключен к правильной сети
+      if (
+        connectedChain &&
+        parseInt(connectedChain.id, 16) !== CURRENT_CHAIN.id
+      ) {
+        console.warn(
+          `Wallet connected to wrong network: ${connectedChain.id}, expected: ${CURRENT_CHAIN.hexId}`
+        );
+      }
+
+      // Используем BrowserProvider вместо Web3Provider
+      const provider = new ethers.BrowserProvider(
+        connectedWallet.provider,
+        "any"
+      );
+
+      // Добавляем обработчик ошибок сети
+      provider.on(
+        "network",
+        (
+          newNetwork: { chainId: number },
+          oldNetwork: { chainId: number } | null
+        ) => {
+          if (oldNetwork && newNetwork.chainId !== oldNetwork.chainId) {
+            console.log(
+              `Network changed from ${oldNetwork.chainId} to ${newNetwork.chainId}`
+            );
+
+            // Если сеть изменилась на неправильную, выводим предупреждение
+            if (newNetwork.chainId !== CURRENT_CHAIN.id) {
+              console.warn(
+                `Network changed to incorrect network: ${newNetwork.chainId}, expected: ${CURRENT_CHAIN.id}`
+              );
+            }
+          }
+        }
+      );
+
+      return provider;
+    } catch (error) {
+      console.error("Error getting provider:", error);
+      return null;
+    }
+  }, [connectedWallet, connectedChain]);
 
   const getSigner = async () => {
     const provider = getProvider();
-    return await provider.getSigner();
+    return await provider?.getSigner();
   };
   const connect = async () => {
     if (!web3Onboard) return;
 
     try {
+      // Подключаем кошелек
       const wallets = await web3Onboard.connectWallet();
-      console.log('wallets', wallets.length, wallets);
-      await web3Onboard.setChain({chainId: CURRENT_CHAIN.hexId});
-      // await switchToBase();
+      console.log("wallets", wallets.length, wallets);
 
-      if(wallets.length > 0) {
+      if (wallets.length > 0) {
         setConnectedWallet(wallets[0]);
-        await web3Onboard.connectWallet();
-        if (wallets[0].chains && wallets[0].chains.length > 0) {
-          setConnectedChain(wallets[0].chains[0]);
+
+        // Проверяем текущую сеть
+        const currentChain = wallets[0].chains?.[0];
+        if (currentChain) {
+          const currentChainId = parseInt(currentChain.id, 16);
+          console.log(
+            `Текущая сеть: ${currentChain.label} (${currentChainId})`
+          );
+
+          // Если сеть не соответствует требуемой, переключаем
+          if (currentChainId !== CURRENT_CHAIN.id) {
+            console.log(
+              `Переключение на сеть ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
+            );
+
+            // Добавляем задержку перед переключением сети для стабильности
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
+            // Переключаем на нужную сеть
+            const success = await web3Onboard.setChain({
+              chainId: CURRENT_CHAIN.hexId,
+            });
+
+            if (success) {
+              console.log(
+                `✅ Успешно переключились на сеть ${CURRENT_CHAIN.label}`
+              );
+            } else {
+              console.warn(
+                `⚠️ Не удалось переключиться на сеть ${CURRENT_CHAIN.label}`
+              );
+            }
+          } else {
+            console.log(
+              `✅ Уже подключены к правильной сети ${CURRENT_CHAIN.label}`
+            );
+          }
         }
 
-        web3Onboard.state.select('chains').subscribe((chains: Chain[]) => {
-          console.log('chains sub', chains.length, chains);
+        // Устанавливаем слушатель изменений сети
+        web3Onboard.state.select("chains").subscribe((chains: Chain[]) => {
+          console.log("chains sub", chains.length, chains);
           if (chains && chains.length > 0) {
-            setConnectedChain(chains[0]);
+            const newChain = chains[0];
+            setConnectedChain(newChain);
+
+            // Проверяем, соответствует ли новая сеть требуемой
+            const newChainId = parseInt(newChain.id, 16);
+            if (newChainId !== CURRENT_CHAIN.id) {
+              console.warn(
+                `⚠️ Подключена неправильная сеть: ${newChain.label} (${newChainId}), требуется ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
+              );
+            } else {
+              console.log(
+                `✅ Подключена правильная сеть: ${newChain.label} (${newChainId})`
+              );
+            }
           }
         });
       }
     } catch (error) {
-      console.error('Error connecting wallet:', error);
+      console.error("Error connecting wallet:", error);
     }
   };
   const createAmbireWallet = async () => {
     try {
       const ambireLoginSDK = new AmbireLoginSDK({
         dappName: "GM",
-        dappIconPath: 'https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg',
+        dappIconPath:
+          "https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg",
       });
 
-      ambireLoginSDK.openLogin({chainId: CURRENT_CHAIN.id});  // Changed from 8453
+      ambireLoginSDK.openLogin({ chainId: CURRENT_CHAIN.id }); // Changed from 8453
       console.log("Ambire Wallet created successfully!");
     } catch (error) {
       console.error("Error creating Ambire Wallet:", error);
@@ -164,15 +271,15 @@ export const useWeb3 = () => {
   };
   const disconnect = async () => {
     if (!web3Onboard || !connectedWallet) return;
-  
+
     try {
-      if(connectedWallet) {
+      if (connectedWallet) {
         await web3Onboard.disconnectWallet(connectedWallet);
         setConnectedWallet(null);
         setConnectedChain(null);
       }
     } catch (error) {
-      console.error('Error disconnecting wallet:', error);
+      console.error("Error disconnecting wallet:", error);
     }
   };
   return {
@@ -183,28 +290,30 @@ export const useWeb3 = () => {
     connect,
     createAmbireWallet,
     getProvider,
-    getSigner
+    getSigner,
   };
 };
 
 async function switchToBase() {
-  console.log('switchToBase..');
+  console.log("switchToBase..");
   const baseChainId = CURRENT_CHAIN.hexId;
 
   const windowEthereum = window.ethereum;
-  if(!windowEthereum) {
+  if (!windowEthereum) {
     return;
   }
 
   try {
     // Check the current chain ID
-    const currentChainId = await windowEthereum.request({ method: 'eth_chainId' });
-    console.log('currentChainId', currentChainId);
+    const currentChainId = await windowEthereum.request({
+      method: "eth_chainId",
+    });
+    console.log("currentChainId", currentChainId);
 
     if (currentChainId !== baseChainId) {
       // Attempt to switch to Base network
       await windowEthereum.request({
-        method: 'wallet_switchEthereumChain',
+        method: "wallet_switchEthereumChain",
         params: [{ chainId: baseChainId }],
       });
     }
@@ -215,34 +324,40 @@ async function switchToBase() {
     if (switchError.code && switchError.code === 4902) {
       try {
         await windowEthereum.request({
-          method: 'wallet_addEthereumChain',
+          method: "wallet_addEthereumChain",
           params: [
             {
               chainId: baseChainId,
               chainName: CURRENT_CHAIN.label,
               nativeCurrency: {
-                name: 'Base',
-                symbol: 'ETH',
+                name: "Base",
+                symbol: "ETH",
                 decimals: 18,
               },
               rpcUrls: [CURRENT_CHAIN.rpcUrl],
-              blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl], 
+              blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl],
             },
           ],
         });
 
         // After adding, switch to Base
         await windowEthereum.request({
-          method: 'wallet_switchEthereumChain',
+          method: "wallet_switchEthereumChain",
           params: [{ chainId: baseChainId }],
         });
 
         console.log(`${CURRENT_CHAIN.label} network added and switched`);
       } catch (addError) {
-        console.error(`Failed to add ${CURRENT_CHAIN.label} network:`, addError);
+        console.error(
+          `Failed to add ${CURRENT_CHAIN.label} network:`,
+          addError
+        );
       }
     } else {
-      console.error(`Failed to switch to ${CURRENT_CHAIN.label} network:`, switchError);
+      console.error(
+        `Failed to switch to ${CURRENT_CHAIN.label} network:`,
+        switchError
+      );
     }
   }
 }
