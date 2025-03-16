@@ -2,20 +2,26 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   min-height: 100vh;
   background: url("/image/bg.png") no-repeat center center;
   background-size: cover;
   position: relative;
   overflow: hidden;
+  padding: 20px;
+  z-index: 1;
 }
+
 .infoContainer {
   margin-top: 100px;
   display: flex;
   gap: 50px;
 }
+
 .cloude img {
   width: 500px;
 }
+
 .cosmoman {
   animation: float 6s ease-in-out infinite;
   transform-origin: center;
@@ -32,6 +38,7 @@
   transform: scale(1.1) rotate(5deg);
   filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.3));
 }
+
 .rainbow {
   position: absolute;
   left: 25%;
@@ -58,6 +65,7 @@
   animation: cloudEntrance1 2s ease-out forwards,
     floatCloud1 30s linear infinite 2s, cloudBob 5s ease-in-out infinite 2s;
 }
+
 .cloud1 img {
   width: 820px;
 }
@@ -71,6 +79,7 @@
   animation: cloudEntrance2 2s ease-out forwards 0.5s,
     floatCloud2 35s linear infinite 2.5s, cloudBob 5s ease-in-out infinite 2.5s;
 }
+
 .cloud2 img {
   width: 600px;
 }
@@ -93,6 +102,7 @@
   filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.15));
   transition: all 0.3s ease;
 }
+
 .cloude:hover {
   filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.2));
   transform: translateY(-5px);
@@ -117,6 +127,7 @@
   transform: scale(1.05);
   text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
 }
+
 .balance {
   font-size: 32px !important;
   font-weight: bold !important;
@@ -150,6 +161,7 @@
     opacity: 0;
     transform: scale(1.2);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -168,17 +180,20 @@
     opacity: 0;
     transform: scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
   }
 }
+
 @keyframes cloudEntrance1 {
   0% {
     opacity: 0;
     left: -100%;
     transform: scale(0.8);
   }
+
   100% {
     opacity: 1;
     left: -100px;
@@ -192,6 +207,7 @@
     right: -100%;
     transform: scale(0.8);
   }
+
   100% {
     opacity: 1;
     right: 0;
@@ -205,14 +221,17 @@
     bottom: -200px;
     transform: translateX(-50%) rotate(-5deg) scale(0.8);
   }
+
   50% {
     opacity: 0.5;
     bottom: 40px;
     transform: translateX(-50%) rotate(2deg) scale(1.1);
   }
+
   75% {
     transform: translateX(-50%) rotate(-1deg) scale(0.95);
   }
+
   100% {
     opacity: 1;
     bottom: 20px;
@@ -221,11 +240,13 @@
 }
 
 @keyframes rainbowPulse {
+
   0%,
   100% {
     transform: scale(1);
     filter: brightness(1) saturate(1);
   }
+
   50% {
     transform: scale(1.05);
     filter: brightness(1.2) saturate(1.2);
@@ -233,40 +254,49 @@
 }
 
 @keyframes floatCloud1 {
+
   0%,
   100% {
     transform: translateX(0) scale(1);
   }
+
   50% {
     transform: translateX(100px) scale(1.05);
   }
 }
 
 @keyframes floatCloud2 {
+
   0%,
   100% {
     transform: translateX(0) scale(1);
   }
+
   50% {
     transform: translateX(-100px) scale(1.05);
   }
 }
+
 @keyframes float {
+
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-15px);
   }
 }
 
 @keyframes glowPulse {
+
   0%,
   100% {
     opacity: 0.5;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.8;
     transform: scale(1.1);
@@ -297,14 +327,17 @@
 }
 
 @keyframes cloudParallax {
+
   0%,
   100% {
     transform: translateZ(0) scale(1);
   }
+
   50% {
     transform: translateZ(50px) scale(1.05);
   }
 }
+
 .mediumFont {
   font-size: 24px !important;
 }
@@ -312,6 +345,7 @@
 .smallFont {
   font-size: 22px !important;
 }
+
 .addressContainer,
 .balanceContainer {
   display: flex;
@@ -372,14 +406,13 @@
   right: -2px;
   bottom: -2px;
   border-radius: 14px;
-  background: linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.1),
-    rgba(255, 255, 255, 0.2)
-  );
+  background: linear-gradient(45deg,
+      rgba(255, 255, 255, 0.1),
+      rgba(255, 255, 255, 0.2));
   z-index: -1;
   animation: glowPulse 2s infinite;
 }
+
 @media (max-width: 790px) {
   .infoContainer {
     flex-direction: column;
@@ -387,36 +420,50 @@
     margin-top: 50px;
     gap: 30px;
   }
+
   .cloud1 img {
     width: 600px;
   }
+
   .cloud2 img {
     width: 500px;
   }
+
   .rainbow img {
     width: 300px;
   }
+
   .cloude {
     width: 440px;
     height: 210px;
   }
+
   .cosmoman img {
     width: 150px;
   }
+
   .cloude p {
     font-size: 28px;
   }
+
   .cloude p:first-of-type {
     font-size: 26px;
   }
+
   .balance {
     font-size: 30px;
   }
+
+  .container {
+    padding: 10px;
+  }
 }
+
 @media (max-width: 790px) {
   .cloud1 img {
     width: 500px;
   }
+
   .iconButton {
     padding: 6px;
   }
@@ -425,65 +472,83 @@
     width: 18px;
     height: 18px;
   }
+
   .cloud2 img {
     width: 400px;
   }
+
   .rainbow img {
     width: 250px;
   }
+
   .cloude p {
     font-size: 24px;
   }
+
   .balance {
     font-size: 26px;
   }
+
   .cloude p:first-of-type {
     font-size: 24Fpx;
   }
+
   .cloude {
     gap: 0;
     width: 400px;
     height: 190px;
   }
+
   .infoContainer {
     margin-top: 40px;
     gap: 20px;
   }
 }
+
 @media (max-width: 450px) {
   .cloud1 img {
     width: 400px;
   }
+
   .cosmoman img {
     width: 130px;
   }
+
   .cloud2 img {
     width: 300px;
   }
+
   .rainbow {
     bottom: -10px !important;
   }
+
   .rainbow img {
     width: 200px;
   }
+
   .cloude p {
     font-size: 20px;
   }
+
   .balance {
     font-size: 23px !important;
   }
+
   .cloude {
     gap: 0;
     width: 300px;
     height: 145px;
   }
+
   .infoContainer {
     margin-top: 60px;
     gap: 20px;
   }
+
   .cloude p:first-of-type {
     font-size: 20px;
   }
+
   .iconButton {
     padding: 5px;
     border-radius: 10px;
@@ -492,5 +557,9 @@
   .iconButton svg {
     width: 16px;
     height: 16px;
+  }
+
+  .container {
+    padding: 5px;
   }
 }

@@ -1,11 +1,13 @@
-export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "";
+export const CONTRACT_ADDRESS = "YOUR_CONTRACT_ADDRESS"; // Замените на реальный адрес контракта
 export const TWITTER_CLIENT_ID = process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "";
 export const WALLETCONNECT_PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
 export const CONTRACT_ABI = [
-  "function requestTwitterVerification(string calldata accessCodeEncrypted, string calldata userID) public",
-  "function userByWallet(address wallet) public view returns (string memory)",
-  "event TwitterVerificationResult(string indexed userID, address indexed wallet, bool isSuccess, string errorMsg)",
-];
+  "function balanceOf(address owner) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+  "function symbol() view returns (string)",
+  "function name() view returns (string)",
+  "event Transfer(address indexed from, address indexed to, uint256 value)"
+] as const;
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 export const TOKEN_URL = process.env.NEXT_PUBLIC_TOKEN_URL || "";
 
