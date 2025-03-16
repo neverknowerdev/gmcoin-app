@@ -1,8 +1,8 @@
 // ConnectWallet.tsx
 import React from "react";
 import styles from "./ConnectWallet.module.css";
-import ButtonBackground from "../buttons/BlueButton";
-import ButtonYellow from "../buttons/YellowButton";
+import ButtonBackground from "../../ui/buttons/BlueButton";
+import ButtonYellow from "../../ui/buttons/YellowButton";
 
 interface AuthComponentProps {
   onConnect?: () => void;

@@ -6,7 +6,7 @@ import cloude from "@/public/image/xcloude.webp";
 import plane from "@/public/image/planepng.webp";
 import whcloude from "@/public/image/whcloude.webp";
 import bird from "@/public/image/birds.png";
-import ButtonBackground from "./buttons/BlueButton";
+import ButtonBackground from "../../ui/buttons/BlueButton";
 
 const TwitterConnect: React.FC<TwitterConnectProps> = ({
   onConnectClick,

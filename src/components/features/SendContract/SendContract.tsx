@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./SendContract.module.css";
-import ButtonBackground from "../buttons/BlueButton";
-import Modal from "../modal/Modal";
+import ButtonBackground from "../../ui/buttons/BlueButton";
+import Modal from "../../modals/Modal";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
