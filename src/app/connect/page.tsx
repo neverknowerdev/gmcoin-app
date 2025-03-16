@@ -294,113 +294,82 @@ export default function Home() {
     const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
     const accessToken = sessionStorage.getItem("accessToken");
     const twitterUserId = localStorage.getItem("twitterUserId");
-    const hasCompletedTx = localStorage.getItem(
-      "hasCompletedTwitterVerification"
-    );
+    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
 
-    console.log("encryptedAccessToken", encryptedAccessToken);
-    console.log("twitterUserId", twitterUserId);
-
-    // Skip transaction if returning user with completed verification
-    if (
-      twitterUserId &&
-      encryptedAccessToken &&
-      localStorage.getItem("twitterName") &&
-      hasCompletedTx === "true"
-    ) {
-      console.log("✅ Returning user, skipping transaction");
-      setIsFirstTimeUser(false);
-      setTransactionStatus("success");
-      return;
+    if (!encryptedAccessToken || !twitterUserId) {
+      throw new Error("Missing required authentication data");
     }
 
     try {
       setTransactionStatus("pending");
-      console.log("🚀 Sending transaction...");
+      console.log("🚀 Initiating transaction process...");
 
       const browserProvider = getProvider();
       const signer = await getSigner();
-      const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
-      const address = await signer.getAddress();
-      const balance = await browserProvider.getBalance(address);
-      console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
-
-      let txReceipt;
-
-      const estimatedGas =
-        await contract.requestTwitterVerification.estimateGas(
-          encryptedAccessToken,
-          twitterUserId
-        );
-      console.log(`⛽ Estimated gas: ${estimatedGas.toString()}`);
-
-      const gasPrice = await browserProvider.getFeeData();
-      const totalGasCost = BigInt(estimatedGas) * gasPrice.gasPrice!;
-      console.log(`💰 Gas cost: ${ethers.formatEther(totalGasCost)} ETH`);
-
-      let txHash;
-
-      // Direct contract call path
-      if (balance > totalGasCost * 2n) {
-        console.log("🔹 Sending contract transaction...");
-        const tx = await contract.requestTwitterVerification(
-          encryptedAccessToken,
-          twitterUserId
-        );
-        txHash = tx.hash;
-        console.log("Transaction hash:", txHash);
-
-        // Wait for transaction confirmation, but not for events
-        txReceipt = await tx.wait();
-        console.log("Transaction confirmed:", txReceipt);
-      } else {
-        console.log("🔹 Using API relay...");
-        try {
-          const rawMessage = ethers.solidityPackedKeccak256(
-            ["string"],
-            ["gmcoin.meme twitter-verification"]
-          );
-          const signature = await signer.signMessage(
-            ethers.getBytes(rawMessage)
-          );
-          // const signature = await signer.signMessage(
-          //   "gmcoin.meme twitter-verification"
-          // );
-          const response = await fetch(API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              accessToken,
-              signature,
-              wallet: address,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(
-              `API Error: ${response.status} ${response.statusText}`
-            );
-          }
-
-          txReceipt = await response.json();
-          console.log("API response:", txReceipt);
-        } catch (apiError: any) {
-          console.error("❌ API Error:", apiError);
-          throw new Error(`Relayer service error: ${apiError.message}`);
-        }
+      
+      if (!browserProvider || !signer) {
+        throw new Error("Failed to get provider or signer");
       }
 
-      // Set up background event listener to log events but don't wait for it
-      setupEventListener();
+      // Сначала запрашиваем подпись у пользователя
+      console.log("🔏 Requesting signature approval...");
+      const message = "I confirm that I want to verify my Twitter account with GMCoin";
+      const messageHash = ethers.solidityPackedKeccak256(
+        ["string"],
+        [message]
+      );
+      
+      // Явно запрашиваем подпись у пользователя
+      let signature;
+      try {
+        signature = await signer.signMessage(ethers.getBytes(messageHash));
+        console.log("✅ Signature approved:", signature);
+      } catch (signError) {
+        console.log("❌ User rejected signature request");
+        setTransactionStatus("error");
+        setErrorMessage("Signature request was rejected");
+        return;
+      }
 
-      // Mark the user as having completed verification
-      localStorage.setItem("hasCompletedTwitterVerification", "true");
+      const address = await signer.getAddress();
+      
+      // Используем API relay для всех случаев, чтобы избежать проблем с ENS
+      console.log("🔹 Using API relay...");
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            accessToken,
+            signature,
+            wallet: address,
+          }),
+        });
 
-      // Set success status after transaction completion
-      setTransactionStatus("success");
-      sessionStorage.removeItem("code");
-      sessionStorage.removeItem("verifier");
+        if (!response.ok) {
+          throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        }
+
+        const txReceipt = await response.json();
+        console.log("API response:", txReceipt);
+
+        // Set up background event listener
+        setupEventListener();
+
+        // Mark the user as having completed verification
+        localStorage.setItem("hasCompletedTwitterVerification", "true");
+
+        // Set success status
+        setTransactionStatus("success");
+        sessionStorage.removeItem("code");
+        sessionStorage.removeItem("verifier");
+      } catch (apiError: any) {
+        console.error("❌ API Error:", apiError);
+        setErrorMessage(getErrorMessage(apiError));
+        setTransactionStatus("error");
+        throw apiError;
+      }
+
     } catch (error: any) {
       console.error("❌ Transaction Error:", error);
 
