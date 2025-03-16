@@ -63,7 +63,9 @@ export const UserInfo: FC<UserInfoProps> = ({
       </div>
 
       <div className={styles.cloude}>
-        <p className={styles.username}>{twitterName}</p>
+        <p className={styles.username}>
+          {twitterName && twitterName !== ".." ? twitterName : "Twitter User"}
+        </p>
         <div className={styles.addressContainer}>
           <p>{formatAddress(walletAddress)}</p>
           <button

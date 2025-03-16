@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { TwitterAuthState } from "@/types/twitter.types";
-import { generateCodeVerifier, generateCodeChallenge } from "@/utils/auth";
-import { TWITTER_CLIENT_ID } from "@/constants/api";
+import { TwitterAuthState } from "../types/twitter.types";
+import { generateCodeVerifier, generateCodeChallenge } from "../utils/auth";
+import { TWITTER_CLIENT_ID } from "../config/index";
 
 export const useTwitterAuth = () => {
   const [state, setState] = useState<TwitterAuthState>({

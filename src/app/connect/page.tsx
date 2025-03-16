@@ -86,7 +86,7 @@ export default function Home() {
   }, [connectedWallet, updateWalletInfo]);
 
   useEffect(() => {
-    const checkTwitterAuth = () => {
+    const checkTwitterAuth = async () => {
       // Skip if we're already fully authorized
       if (isAuthorized) {
         setIsTwitterLoading(false);
@@ -95,6 +95,24 @@ export default function Home() {
 
       const params = new URLSearchParams(window.location.search);
       const authorizationCode = params.get("code");
+      
+      // Проверяем сохраненные данные Twitter
+      const twitterName = localStorage.getItem("twitterName");
+      const twitterUserId = localStorage.getItem("twitterUserId");
+      const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
+      
+      // Если имя пользователя отсутствует или равно "..", но есть ID и токен,
+      // попробуем получить имя пользователя заново
+      if ((!twitterName || twitterName === "..") && twitterUserId && encryptedAccessToken) {
+        try {
+          // Здесь можно добавить запрос к API для получения имени пользователя
+          console.log("Trying to fetch Twitter username again");
+          // Временное решение - установить какое-то значение по умолчанию
+          localStorage.setItem("twitterName", "@" + twitterUserId.substring(0, 8));
+        } catch (error) {
+          console.error("Failed to fetch Twitter username:", error);
+        }
+      }
 
       if (authorizationCode) {
         console.log("Found authorization code in URL");

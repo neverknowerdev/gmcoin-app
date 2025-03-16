@@ -3,8 +3,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "../hooks/useWallet";
 import { useWeb3 } from "../hooks/useWeb3";
-import { UserInfo } from "../components/dashboard/UserInfo/UserInfo";
-import { DashboardDecorations } from "../components/dashboard/DashboardDecorations/DashboardDecorations";
+import { UserInfo } from "../components/ui/dashboard/UserInfo/UserInfo";
+import { DashboardDecorations } from "../components/ui/dashboard/DashboardDecorations/DashboardDecorations";
 import styles from "./dashboard.module.css";
 
 const Dashboard = () => {
