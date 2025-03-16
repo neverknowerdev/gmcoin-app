@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/src/config';
 
 // Секретный ключ Infura хранится только на сервере
-const INFURA_API_KEY = process.env.INFURA_API_KEY || "46c83ef6f9834cc49b76640eededc9f5";
+const INFURA_API_KEY = process.env.INFURA_API_KEY;
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +13,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Wallet address is required" }, { status: 400 });
     }
     
-    // Используем обычный JsonRpcProvider вместо WebSocketProvider для большей стабильности
     const provider = new ethers.JsonRpcProvider(
       `https://base-sepolia.infura.io/v3/${INFURA_API_KEY}`
     );
