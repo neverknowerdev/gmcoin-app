@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWallet } from "../hooks/useWallet";
 import { useWeb3 } from "../hooks/useWeb3";
@@ -12,18 +12,24 @@ const Dashboard = () => {
   const { updateWalletInfo } = useWallet();
   const router = useRouter();
 
+  const [walletAddress, setWalletAddress] = useState("");
+  const [twitterName, setTwitterName] = useState("@username");
+
   useEffect(() => {
     const checkAuth = () => {
       const isAuthenticated =
         localStorage.getItem("userAuthenticated") === "true";
-      const walletAddress = localStorage.getItem("walletAddress");
+      const wallet = localStorage.getItem("walletAddress");
+      const twitter = localStorage.getItem("twitterName") || "@username";
 
-      if (!isAuthenticated || !walletAddress) {
+      if (!isAuthenticated || !wallet) {
         router.push("/connect");
         return;
       }
 
-      updateWalletInfo(walletAddress);
+      updateWalletInfo(wallet);
+      setWalletAddress(wallet);
+      setTwitterName(twitter);
     };
 
     checkAuth();
@@ -44,8 +50,8 @@ const Dashboard = () => {
   return (
     <div className={styles.container}>
       <UserInfo
-        twitterName={localStorage.getItem("twitterName") || "@username"}
-        walletAddress={localStorage.getItem("walletAddress") || ""}
+        twitterName={twitterName}
+        walletAddress={walletAddress}
         onDisconnect={handleDisconnect}
         signer={getSigner()}
       />
