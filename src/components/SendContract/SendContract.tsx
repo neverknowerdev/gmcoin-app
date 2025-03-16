@@ -80,7 +80,7 @@ const SendContract: React.FC<SendContractProps> = ({
       // Alternative if using React Router:
       // navigate("/");
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const storedVerifier = sessionStorage.getItem("verifier");
@@ -106,7 +106,7 @@ const SendContract: React.FC<SendContractProps> = ({
       setModalState("error");
       setErrorMessage("Transaction failed");
     }
-  }, [transactionStatus]);
+  }, [transactionStatus, router]);
   
   useEffect(() => {
     const updateWallet = (event?: StorageEvent) => {
@@ -189,7 +189,7 @@ const SendContract: React.FC<SendContractProps> = ({
       .finally(() => {
         setIsTwitterLoading(false);
       });
-  }, [code, verifier, fetchTwitterAccessToken, twitterName]);
+  }, [code, verifier, fetchTwitterAccessToken, twitterName, setCode, setVerifier]);
 
   const handleSendTransaction = async () => {
     if (!isFormValid) return;

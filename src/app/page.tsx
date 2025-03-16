@@ -98,19 +98,24 @@ const Dashboard = () => {
     if (walletAddress) {
       loadTokenBalance();
     }
-  }, [walletAddress]);
+  }, [walletAddress, loadTokenBalance, getSigner]);
 
   const handleDisconnect = async () => {
     try {
       await web3Disconnect();
       updateWalletInfo("");
       const secondTime = localStorage.getItem("hasCompletedTwitterVerification");
+      const savedTwitterName = localStorage.getItem("twitterName");
       // Clear all local storage items
       localStorage.clear();
       // Clear all session storage items
       sessionStorage.clear();
       if (secondTime) {
         localStorage.setItem("hasCompletedTwitterVerification", secondTime);
+      }
+      // Save the Twitter name for reconnection
+      if (savedTwitterName) {
+        localStorage.setItem("twitterName", savedTwitterName);
       }
       // Redirect to the connect page
       router.push("/connect");
