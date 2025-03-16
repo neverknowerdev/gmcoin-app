@@ -178,130 +178,6 @@ export default function Home() {
     window.location.href = twitterAuthUrl;
   };
 
-  // Function to poll for the specific TwitterVerificationResult event
-  // const pollForTwitterVerificationEvent = async (
-  //   txHash: string,
-  //   walletAddress: string,
-  //   twitterUserId: string,
-  //   maxAttempts = 30,
-  //   intervalMs = 6000
-  // ) => {
-  //   console.log(`🔍 Polling for TwitterVerificationResult event for tx: ${txHash}`);
-  //   console.log(`👤 Twitter User ID: ${twitterUserId}`);
-  //   console.log(`👛 Wallet Address: ${walletAddress}`);
-
-  //   // Use HTTP provider for polling
-  //   const httpProvider = new ethers.JsonRpcProvider(
-  //     "https://base-sepolia.infura.io/v3/46c83ef6f9834cc49b76640eededc9f5"
-  //   );
-
-  //   // Create contract instance
-  //   const contract = new ethers.Contract(
-  //     CONTRACT_ADDRESS,
-  //     CONTRACT_ABI,
-  //     httpProvider
-  //   );
-
-  //   // Get the Twitter verification event signature
-  //   // From logs we can see this event has topic: 0xa5ad92a05a481deca6490891b32fb01290968d76ddd9b07af8e2e4079d8cc3ff
-  //   const twitterVerificationEventTopic = "0xa5ad92a05a481deca6490891b32fb01290968d76ddd9b07af8e2e4079d8cc3ff";
-  //   console.log(`🎯 Looking for event with topic: ${twitterVerificationEventTopic}`);
-
-  //   // Also get the second topic that should contain our wallet address
-  //   const walletAddressTopic = ethers.zeroPadValue(
-  //     walletAddress.toLowerCase(),
-  //     32
-  //   ).toLowerCase();
-  //   console.log(`🔑 Wallet address as topic: ${walletAddressTopic}`);
-
-  //   let attempts = 0;
-
-  //   // Helper function to check for the specific event
-  //   const checkForEvent = async () => {
-  //     try {
-  //       const receipt = await httpProvider.getTransactionReceipt(txHash);
-
-  //       if (!receipt) {
-  //         console.log(`⏳ Transaction ${txHash} not yet mined. Waiting...`);
-  //         return null;
-  //       }
-
-  //       console.log(`📜 Transaction mined with ${receipt.logs.length} logs`);
-
-  //       // Check each log for our specific event
-  //       for (const log of receipt.logs) {
-  //         // Check if this log is from our contract
-  //         if (log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) {
-  //           continue;
-  //         }
-
-  //         console.log(`📄 Examining log: Topics=${JSON.stringify(log.topics)}`);
-
-  //         // Check if first topic matches our event signature
-  //         if (log.topics[0].toLowerCase() === twitterVerificationEventTopic.toLowerCase()) {
-  //           console.log(`🎯 Found log with matching event topic!`);
-
-  //           // Check if second topic contains our wallet address
-  //           if (log.topics[1].toLowerCase() === walletAddressTopic.toLowerCase()) {
-  //             console.log(`✅ Wallet address match confirmed!`);
-
-  //               return {
-  //                 found: true,
-  //                 isSuccess: true,
-  //                 errorMsg: ""
-  //               };
-
-  //           } else {
-  //             console.log(`❌ Wallet address in event doesn't match our wallet`);
-  //           }
-  //         }
-  //       }
-
-  //       // If we got here, we didn't find our specific event
-  //       return { found: false };
-  //     } catch (error: any) {
-  //       console.error(`❌ Error checking for event: ${error.message}`);
-  //       return null;
-  //     }
-  //   };
-
-  //   // Use polling with increasing delay
-  //   return new Promise((resolve, reject) => {
-  //     const poll = async () => {
-  //       if (attempts >= maxAttempts) {
-  //         console.log(`⚠️ Maximum polling attempts (${maxAttempts}) reached`);
-  //         reject(new Error(`Verification event not found after ${maxAttempts} attempts`));
-  //         return;
-  //       }
-
-  //       attempts++;
-  //       console.log(`📊 Polling attempt ${attempts}/${maxAttempts}`);
-
-  //       const result = await checkForEvent();
-
-  //       if (result === null) {
-  //         // Transaction not yet mined, continue polling
-  //         setTimeout(poll, intervalMs);
-  //       } else if (!result.found) {
-  //         // Transaction mined but our event not found, continue polling
-  //         setTimeout(poll, intervalMs + (attempts * 1000));
-  //       } else {
-  //         // Event found!
-  //         if (result.isSuccess) {
-  //           console.log(`🎉 Found successful verification event!`);
-  //           resolve("success");
-  //         } else {
-  //           console.log(`❌ Found verification event but it indicates failure: ${result.errorMsg}`);
-  //           reject(new Error(result.errorMsg || "Verification failed"));
-  //         }
-  //       }
-  //     };
-
-  //     // Start polling
-  //     poll();
-  //   });
-  // };
-
   const sendTransaction = async (): Promise<void> => {
     if (!connectedWallet) {
       console.log("❌ Wallet is not connected. Connecting...");
@@ -420,57 +296,61 @@ export default function Home() {
   // Optional background event listener that doesn't block UI flow
   const setupEventListener = () => {
     try {
-      const infuraProvider = new ethers.WebSocketProvider(
-        "wss://base-sepolia.infura.io/ws/v3/46c83ef6f9834cc49b76640eededc9f5"
-      );
-
-      const infuraContract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        CONTRACT_ABI,
-        infuraProvider
-      );
-
-      // Set a timeout to clean up the listener after 5 minutes
-      const timeout = setTimeout(() => {
-        console.log("Cleaning up event listener after timeout");
-        infuraContract.removeAllListeners("TwitterVerificationResult");
-        infuraProvider.destroy();
-      }, 300000); // 5 minutes
-
-      infuraContract.on(
-        "TwitterVerificationResult",
-        (userID, wallet, isSuccess, errorMsg) => {
-          console.log("TwitterVerificationResult event received:", {
-            userID,
-            wallet,
-            isSuccess,
-            errorMsg,
+      // Сохраняем адрес кошелька для проверки событий
+      if (connectedWallet?.accounts[0]?.address) {
+        localStorage.setItem("walletAddress", connectedWallet.accounts[0].address);
+      }
+      
+      // Настраиваем периодический опрос событий через наш API
+      const pollInterval = setInterval(async () => {
+        try {
+          const walletAddress = localStorage.getItem("walletAddress");
+          if (!walletAddress) return;
+          
+          const response = await fetch('/api/events', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ walletAddress }),
           });
-          clearTimeout(timeout);
-
-          if (isSuccess) {
-            console.log(
-              "✅ Twitter verification successful according to event"
-            );
-          } else {
-            console.log(
-              "❌ Twitter verification failed according to event:",
-              errorMsg
-            );
+          
+          if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
           }
-
-          // Clean up
-          infuraContract.removeAllListeners("TwitterVerificationResult");
-          infuraProvider.destroy();
+          
+          const data = await response.json();
+          
+          if (data.found) {
+            console.log("TwitterVerificationResult event received:", {
+              userID: data.userID,
+              wallet: data.wallet,
+              isSuccess: data.isSuccess,
+              errorMsg: data.errorMsg,
+            });
+            
+            if (data.isSuccess) {
+              console.log("✅ Twitter verification successful according to event");
+            } else {
+              console.log("❌ Twitter verification failed according to event:", data.errorMsg);
+            }
+            
+            // Очищаем интервал после обработки нужного события
+            clearInterval(pollInterval);
+          }
+        } catch (error) {
+          console.error("Error polling for events:", error);
         }
-      );
-
-      infuraProvider.on("error", (error) => {
-        console.error("WebSocket error:", error);
-      });
+      }, 10000); // Проверяем каждые 10 секунд
+      
+      // Устанавливаем таймаут для очистки через 5 минут
+      const timeout = setTimeout(() => {
+        console.log("Cleaning up event polling after timeout");
+        clearInterval(pollInterval);
+      }, 300000); // 5 минут
+      
     } catch (error) {
       console.error("Failed to set up event listener:", error);
-      // Don't throw error as this is just a background listener
     }
   };
 
@@ -493,6 +373,11 @@ export default function Home() {
       sessionStorage.removeItem("code");
       sessionStorage.removeItem("verifier");
     }
+  };
+
+  // Если нам нужно создать провайдер на клиенте, используем публичный RPC-узел
+  const getPublicProvider = () => {
+    return new ethers.JsonRpcProvider("https://base-sepolia.public.blastapi.io");
   };
 
   if (isCheckingStorage || isTwitterLoading) {
