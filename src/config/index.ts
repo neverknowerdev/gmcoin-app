@@ -9,6 +9,7 @@ export const CONTRACT_ABI = [
   "function symbol() view returns (string)",
   "function name() view returns (string)",
   "event Transfer(address indexed from, address indexed to, uint256 value)",
+  "event TwitterVerificationResult(string userID, address wallet, bool isSuccess, string errorMsg)",
 ] as const;
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 export const TOKEN_URL = process.env.NEXT_PUBLIC_TOKEN_URL || "";
