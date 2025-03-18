@@ -64,7 +64,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // При инициализации проверяем сохраненные данные
+  // When initializing, check saved data
   useEffect(() => {
     const storedAddress = localStorage.getItem("walletAddress");
     const isAuthenticated =

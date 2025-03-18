@@ -96,18 +96,18 @@ export default function Home() {
       const params = new URLSearchParams(window.location.search);
       const authorizationCode = params.get("code");
       
-      // Проверяем сохраненные данные Twitter
+      // Check saved Twitter data
       const twitterName = localStorage.getItem("twitterName");
       const twitterUserId = localStorage.getItem("twitterUserId");
       const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
       
-      // Если имя пользователя отсутствует или равно "..", но есть ID и токен,
-      // попробуем получить имя пользователя заново
+      // If the username is missing or equals "..", but ID and token exist,
+      // try to get the username again
       if ((!twitterName || twitterName === "..") && twitterUserId && encryptedAccessToken) {
         try {
-          // Здесь можно добавить запрос к API для получения имени пользователя
+          // Here you can add a request to the API to get the username
           console.log("Trying to fetch Twitter username again");
-          // Временное решение - установить какое-то значение по умолчанию
+          // Temporary solution - set some default value
           localStorage.setItem("twitterName", "@" + twitterUserId.substring(0, 8));
         } catch (error) {
           console.error("Failed to fetch Twitter username:", error);
@@ -205,7 +205,7 @@ export default function Home() {
         throw new Error("Failed to get provider or signer");
       }
 
-      // Сначала запрашиваем подпись у пользователя
+      // First, request a signature from the user
       console.log("🔏 Requesting signature approval...");
       const message = "I confirm that I want to verify my Twitter account with GMCoin";
       const messageHash = ethers.solidityPackedKeccak256(
@@ -213,7 +213,7 @@ export default function Home() {
         [message]
       );
       
-      // Явно запрашиваем подпись у пользователя
+      // Explicitly request signature from the user
       let signature;
       try {
         signature = await signer.signMessage(ethers.getBytes(messageHash));
@@ -227,7 +227,7 @@ export default function Home() {
 
       const address = await signer.getAddress();
       
-      // Используем API relay для всех случаев, чтобы избежать проблем с ENS
+      // Use API relay for all cases to avoid ENS issues
       console.log("🔹 Using API relay...");
       try {
         const response = await fetch(API_URL, {
@@ -296,12 +296,12 @@ export default function Home() {
   // Optional background event listener that doesn't block UI flow
   const setupEventListener = () => {
     try {
-      // Сохраняем адрес кошелька для проверки событий
+      // Save wallet address for event checking
       if (connectedWallet?.accounts[0]?.address) {
         localStorage.setItem("walletAddress", connectedWallet.accounts[0].address);
       }
       
-      // Настраиваем периодический опрос событий через наш API
+      // Set up periodic polling of events through our API
       const pollInterval = setInterval(async () => {
         try {
           const walletAddress = localStorage.getItem("walletAddress");
@@ -335,19 +335,19 @@ export default function Home() {
               console.log("❌ Twitter verification failed according to event:", data.errorMsg);
             }
             
-            // Очищаем интервал после обработки нужного события
+            // Clear interval after processing the needed event
             clearInterval(pollInterval);
           }
         } catch (error) {
           console.error("Error polling for events:", error);
         }
-      }, 10000); // Проверяем каждые 10 секунд
+      }, 10000); 
       
-      // Устанавливаем таймаут для очистки через 5 минут
+      // Set timeout for cleanup after 5 minutes
       const timeout = setTimeout(() => {
         console.log("Cleaning up event polling after timeout");
         clearInterval(pollInterval);
-      }, 300000); // 5 минут
+      }, 300000); 
       
     } catch (error) {
       console.error("Failed to set up event listener:", error);
@@ -375,7 +375,7 @@ export default function Home() {
     }
   };
 
-  // Если нам нужно создать провайдер на клиенте, используем публичный RPC-узел
+  // If we need to create a provider on the client, use a public RPC node
   const getPublicProvider = () => {
     return new ethers.JsonRpcProvider("https://base-sepolia.public.blastapi.io");
   };

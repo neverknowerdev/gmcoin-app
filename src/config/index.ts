@@ -1,4 +1,4 @@
-export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || ""; // Замените на реальный адрес контракта
+export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || ""; 
 export const TWITTER_CLIENT_ID =
   process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "";
 export const WALLETCONNECT_PROJECT_ID =
