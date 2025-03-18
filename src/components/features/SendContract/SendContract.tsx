@@ -397,33 +397,64 @@ const SendContract: React.FC<SendContractProps> = ({
   const handleSendTransaction = async () => {
     try {
       setModalState("loading");
-
+      
       // Check network before sending transaction
       const networkCorrect = await ensureCorrectNetwork();
       if (!networkCorrect) return;
-
-      await sendTransaction();
-
-      // Save verification status only after successful transaction
-      localStorage.setItem("hasCompletedTwitterVerification", "true");
-      setModalState("success");
+      
+      // Add a timeout to detect if the transaction is taking too long
+      // This helps catch cases when a user closes the wallet window without rejecting
+      let transactionComplete = false;
+      
+      // Create promise race between transaction and timeout
+      await Promise.race([
+        // Regular transaction
+        (async () => {
+          try {
+            await sendTransaction();
+            transactionComplete = true;
+            
+            // Save verification status only after successful transaction
+            localStorage.setItem("hasCompletedTwitterVerification", "true");
+            setModalState("success");
+          } catch (txError) {
+            // Pass any errors up to the outer catch block
+            throw txError;
+          }
+        })(),
+        
+        // Timeout to detect closed window (30 seconds should be enough for user to decide)
+        new Promise((_, reject) => {
+          setTimeout(() => {
+            if (!transactionComplete) {
+              reject(new Error("Transaction timed out - signature window may have been closed"));
+            }
+          }, 15000);
+        })
+      ]);
+      
     } catch (error: any) {
       console.error("Transaction error:", error);
-
-      // Check if transaction was rejected by user
+      
+      // Check for all possible user rejection scenarios, including timeout
       if (
         error.code === 4001 || 
         error.message?.includes("user rejected") ||
         error.message?.includes("User denied") ||
         error.message?.includes("User rejected") ||
-        error.message?.includes("cancelled")
+        error.message?.includes("cancelled") ||
+        error.message?.includes("user closed") ||
+        error.message?.includes("window closed") ||
+        error.message?.includes("Transaction cancelled by user") ||
+        error.message?.includes("timed out") ||
+        error.message?.includes("timeout")
       ) {
-        // Changed: now showing error modal when signature is rejected
+        // Either show error modal or just close the modal
         setErrorMessage("Transaction cancelled");
         setModalState("error");
         return;
       }
-
+      
       // For other errors show error message
       const errorMessage = getErrorMessage(error);
       setErrorMessage(errorMessage);

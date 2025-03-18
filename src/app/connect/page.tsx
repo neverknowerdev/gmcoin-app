@@ -263,10 +263,11 @@ export default function Home() {
       } else {
         console.log("🔹 Using API relay...");
         try {
-          // Force signature even when using API relay
+          // Attempt to get user signature for relay
           const signature = await signer.signMessage("GM Coin Twitter Verification");
           console.log("Signature received:", signature);
           
+          // API call with signature
           const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -276,7 +277,7 @@ export default function Home() {
               wallet: address,
             }),
           });
-
+          
           if (!response.ok) {
             throw new Error(
               `API Error: ${response.status} ${response.statusText}`
@@ -288,15 +289,17 @@ export default function Home() {
         } catch (apiError: any) {
           console.error("❌ API Error:", apiError);
           
-          // Check if user rejected signature
+          // Check if user rejected signature or closed the signature window
           if (
             apiError.code === 4001 || 
             apiError.message?.includes("user rejected") ||
             apiError.message?.includes("User denied") ||
             apiError.message?.includes("User rejected") ||
-            apiError.message?.includes("cancelled")
+            apiError.message?.includes("cancelled") ||
+            apiError.message?.includes("user closed") ||
+            apiError.message?.includes("window closed")
           ) {
-            // Return signature cancellation error to be handled in SendContract
+            // Throw error to be caught by outer try-catch and display error modal
             throw new Error("Transaction cancelled by user");
           }
           
