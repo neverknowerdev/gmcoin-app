@@ -246,28 +246,42 @@ export default function Home() {
         totalGasCost = balance + BigInt(1); // Set cost higher than balance
       }
 
-      // Now balance check will work properly
+      // Check user's balance and choose appropriate execution path
       if (balance > totalGasCost * 2n) {
         console.log("🔹 Sending contract transaction...");
         console.log("TwitterUserId:", twitterUserId);
         
-        const tx = await contract.verifyTwitterAccount(
-          twitterUserId
-        );
-        txHash = tx.hash;
-        console.log("Transaction hash:", txHash);
-        
-        // Wait for transaction confirmation, but not for events
-        txReceipt = await tx.wait();
-        console.log("Transaction confirmed:", txReceipt);
+        try {
+          const tx = await contract.verifyTwitterAccount(
+            twitterUserId
+          );
+          txHash = tx.hash;
+          console.log("Transaction hash:", txHash);
+          
+          // Wait for transaction confirmation, but not for events
+          txReceipt = await tx.wait();
+          console.log("Transaction confirmed:", txReceipt);
+        } catch (txError: any) {
+          // Additional check in case balance check didn't catch insufficient funds
+          if (txError.message?.includes("insufficient funds") || 
+              txError.message?.includes("insufficient balance")) {
+            throw new Error("Insufficient ETH balance to complete this transaction. Please add ETH to your wallet.");
+          }
+          
+          // For "missing revert data" error, provide a user-friendly message
+          if (txError.message?.includes("missing revert data")) {
+            throw new Error("Transaction failed. Please make sure you have enough ETH in your wallet.");
+          }
+          
+          throw txError;
+        }
       } else {
         console.log("🔹 Using API relay...");
         try {
-          // Attempt to get user signature for relay
+          // Force signature even when using API relay
           const signature = await signer.signMessage("GM Coin Twitter Verification");
           console.log("Signature received:", signature);
           
-          // API call with signature
           const response = await fetch(API_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -277,7 +291,7 @@ export default function Home() {
               wallet: address,
             }),
           });
-          
+
           if (!response.ok) {
             throw new Error(
               `API Error: ${response.status} ${response.statusText}`
@@ -289,18 +303,23 @@ export default function Home() {
         } catch (apiError: any) {
           console.error("❌ API Error:", apiError);
           
-          // Check if user rejected signature or closed the signature window
+          // Check if user rejected the signature request or closed the window
           if (
             apiError.code === 4001 || 
             apiError.message?.includes("user rejected") ||
             apiError.message?.includes("User denied") ||
             apiError.message?.includes("User rejected") ||
             apiError.message?.includes("cancelled") ||
-            apiError.message?.includes("user closed") ||
-            apiError.message?.includes("window closed")
+            apiError.message?.includes("window closed") ||
+            apiError.message?.includes("user closed")
           ) {
-            // Throw error to be caught by outer try-catch and display error modal
+            // Return cancellation error to be handled in SendContract
             throw new Error("Transaction cancelled by user");
+          }
+          
+          // If the relay service returns 500, provide a user-friendly message
+          if (apiError.message?.includes("500")) {
+            throw new Error("Service temporarily unavailable. Please try again later or add ETH to your wallet for direct transaction.");
           }
           
           throw new Error(`Relayer service error: ${apiError.message}`);
@@ -320,16 +339,10 @@ export default function Home() {
     } catch (error: any) {
       console.error("❌ Transaction Error:", error);
       
-      // Remove automatic success marking on error
-      // if (postErrorTwitterUserId && postErrorEncryptedToken && postErrorTwitterName) {
-      //   console.log("Transaction error but required data is available, marking as success");
-      //   localStorage.setItem("hasCompletedTwitterVerification", "true");
-      //   setTransactionStatus("success");
-      // } else {
+      // Set error message and status
       setErrorMessage(getErrorMessage(error));
       setTransactionStatus("error");
       throw error;
-      // }
     }
   };
 
