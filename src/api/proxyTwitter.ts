@@ -28,7 +28,7 @@ export default async function handler(req: any, res: any) {
   }
 
   // Check if the request is a duplicate
-  const requestId = `${authCode.substring(0, 10)}_${Date.now()}`;
+  const requestId = `${authCode.substring(0, 10)}_${Math.floor(Math.random() * 1000000)}`;
   console.log(`📝 Processing request ${requestId}`);
 
   // Make sure redirectUri doesn't contain extra parameters

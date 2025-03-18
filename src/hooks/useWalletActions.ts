@@ -36,26 +36,26 @@ export const useWalletActions = ({
 
       if (success) {
         console.log(
-          `✅ Успешно переключились на сеть ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
+          `✅ Successfully switched to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
         );
         setIsWrongNetwork?.(false);
         setModalState(null);
         return true;
       } else {
         console.error(
-          `❌ Не удалось переключиться на сеть ${CURRENT_CHAIN.label}`
+          `❌ Failed to switch to network ${CURRENT_CHAIN.label}`
         );
         setErrorMessage(
-          `Не удалось переключиться на сеть ${CURRENT_CHAIN.label}. Пожалуйста, переключите сеть вручную в вашем кошельке.`
+          `Failed to switch to network ${CURRENT_CHAIN.label}. Please switch the network manually in your wallet.`
         );
         setModalState("error");
         return false;
       }
     } catch (switchError: any) {
-      console.error("❌ Ошибка при переключении сети:", switchError);
+      console.error("❌ Error while switching network:", switchError);
       setErrorMessage(
-        `Ошибка при переключении сети: ${
-          switchError.message || "Неизвестная ошибка"
+        `Error while switching network: ${
+          switchError.message || "Unknown error"
         }`
       );
       setModalState("error");
@@ -74,19 +74,19 @@ export const useWalletActions = ({
     const targetChainId = CURRENT_CHAIN.id;
 
     console.log(
-      `🔍 Проверка сети: текущая ${currentChainId}, целевая ${targetChainId}`
+      `🔍 Network check: current ${currentChainId}, target ${targetChainId}`
     );
 
     if (currentChainId !== targetChainId) {
       console.log(
-        `❌ Неправильная сеть: ${currentChainId}, требуется ${targetChainId}`
+        `❌ Wrong network: ${currentChainId}, required ${targetChainId}`
       );
       setIsWrongNetwork?.(true);
       return false;
     }
 
     console.log(
-      `✅ Правильная сеть: ${CURRENT_CHAIN.label} (${targetChainId})`
+      `✅ Correct network: ${CURRENT_CHAIN.label} (${targetChainId})`
     );
     setIsWrongNetwork?.(false);
     return true;
@@ -100,16 +100,16 @@ export const useWalletActions = ({
       if (typeof chainId !== "string") return;
 
       const newChainId = parseInt(chainId, 16);
-      console.log(`🔄 Сеть изменена на: ${newChainId}`);
+      console.log(`🔄 Network changed to: ${newChainId}`);
 
       if (newChainId !== CURRENT_CHAIN.id) {
         console.log(
-          `⚠️ Обнаружена неправильная сеть: ${newChainId}, требуется ${CURRENT_CHAIN.id}`
+          `⚠️ Detected wrong network: ${newChainId}, required ${CURRENT_CHAIN.id}`
         );
         setIsWrongNetwork?.(true);
       } else {
         console.log(
-          `✅ Сеть соответствует требуемой: ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
+          `✅ Network matches required: ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
         );
         setIsWrongNetwork?.(false);
       }
@@ -145,7 +145,7 @@ export const useWalletActions = ({
 
   const handleReconnectTwitter = useCallback(async () => {
     try {
-      console.log("Начинаем процесс авторизации Twitter...");
+      console.log("Starting Twitter authorization process...");
 
       // Clear all previous authorization data
       sessionStorage.removeItem("code");
@@ -174,7 +174,7 @@ export const useWalletActions = ({
         codeVerifier = codeVerifier.substring(0, 128);
       }
 
-      console.log("Сгенерирован code_verifier длиной:", codeVerifier.length);
+      console.log("Generated code_verifier with length:", codeVerifier.length);
 
       // Save verifier in sessionStorage
       sessionStorage.setItem("verifier", codeVerifier);
@@ -200,14 +200,14 @@ export const useWalletActions = ({
       const twitterAuthUrl = `https://x.com/i/oauth2/authorize?response_type=code&client_id=${TWITTER_CLIENT_ID}&redirect_uri=${encodedRedirectUri}&scope=users.read%20tweet.read&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
       console.log(
-        "Перенаправление на URL авторизации Twitter:",
+        "Redirecting to Twitter authorization URL:",
         twitterAuthUrl
       );
 
       // Redirect user to Twitter authorization page
       window.location.href = twitterAuthUrl;
     } catch (error) {
-      console.error("Ошибка при переподключении Twitter:", error);
+      console.error("Error while reconnecting Twitter:", error);
       setErrorMessage("Failed to reconnect Twitter");
       setModalState("error");
     }
@@ -226,7 +226,7 @@ export const useWalletActions = ({
         throw error;
       }
       console.log(
-        `Повторная попытка через ${delay}мс, осталось попыток: ${retries}`
+        `Retrying in ${delay}ms, attempts remaining: ${retries}`
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
       return retryWithDelay(fn, retries - 1, delay * 1.5);
@@ -237,8 +237,8 @@ export const useWalletActions = ({
     async (code: string, verifier: string) => {
       const url = TOKEN_URL;
       if (!url) {
-        console.error("❌ TOKEN_URL не определен в .env!");
-        throw new Error("Ошибка конфигурации сервера: TOKEN_URL не определен");
+        console.error("❌ TOKEN_URL is not defined in .env!");
+        throw new Error("Server configuration error: TOKEN_URL is not defined");
       }
 
       // Check if this code was already processed
@@ -319,14 +319,14 @@ export const useWalletActions = ({
             body: JSON.stringify(requestBody),
           });
 
-          console.log(`📥 Ответ от сервера [${requestId}]:`, response.status);
+          console.log(`📥 Response from server [${requestId}]:`, response.status);
 
           if (!response.ok) {
             let errorText;
             try {
               errorText = await response.text();
             } catch (e) {
-              errorText = "Не удалось получить текст ошибки";
+              errorText = "Failed to get error text";
             }
 
             // If error is related to invalid code, don't retry
@@ -338,7 +338,7 @@ export const useWalletActions = ({
               )
             ) {
               throw new Error(
-                `Код авторизации недействителен: ${response.status}, ${errorText}`
+                `Authorization code is invalid: ${response.status}, ${errorText}`
               );
             }
 
@@ -351,14 +351,14 @@ export const useWalletActions = ({
           try {
             responseData = await response.json();
           } catch (e) {
-            console.error(`❌ Ошибка при парсинге JSON [${requestId}]:`, e);
-            throw new Error("Ошибка при парсинге ответа сервера");
+            console.error(`❌ Error parsing JSON [${requestId}]:`, e);
+            throw new Error("Error parsing server response");
           }
 
           return responseData;
         }, 1);
 
-        console.log(`✅ Получены данные от сервера [${requestId}]:`, {
+        console.log(`✅ Data received from server [${requestId}]:`, {
           username: data.username,
           user_id: data.user_id,
           hasAccessToken: !!data.access_token,
@@ -367,7 +367,7 @@ export const useWalletActions = ({
 
         if (!data || !data.username) {
           console.error(
-            `❌ Получен неверный ответ от сервера [${requestId}]:`,
+            `❌ Invalid response from server [${requestId}]:`,
             data
           );
           throw new Error("Invalid response from server");
@@ -403,10 +403,7 @@ export const useWalletActions = ({
 
         return data.username;
       } catch (error: any) {
-        // console.error(
-        //   `❌ Ошибка при получении токена Twitter [${requestId}]:`,
-        //   error
-        // );
+
 
         // If error is related to expired code, suggest user to re-authorize
         if (

@@ -184,112 +184,149 @@ export default function Home() {
       await connect();
       return;
     }
-
-    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const accessToken = sessionStorage.getItem("accessToken");
-    const twitterUserId = localStorage.getItem("twitterUserId");
+  
+    const encryptedAccessToken = sessionStorage.getItem('encryptedAccessToken');
+    const accessToken = sessionStorage.getItem('accessToken');
+    const twitterUserId = localStorage.getItem('twitterUserId');
     const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
-
-    if (!encryptedAccessToken || !twitterUserId) {
-      throw new Error("Missing required authentication data");
+  
+    console.log('encryptedAccessToken', encryptedAccessToken);
+    console.log('twitterUserId', twitterUserId);
+  
+    // Skip transaction if returning user with completed verification
+    if (twitterUserId && encryptedAccessToken && localStorage.getItem('twitterName') && hasCompletedTx === "true") {
+      console.log("✅ Returning user, skipping transaction");
+      setIsFirstTimeUser(false);
+      setTransactionStatus("success");
+      return;
     }
-
+  
     try {
       setTransactionStatus("pending");
-      console.log("🚀 Initiating transaction process...");
-
+      console.log("🚀 Sending transaction...");
+  
       const browserProvider = getProvider();
       const signer = await getSigner();
       
       if (!browserProvider || !signer) {
         throw new Error("Failed to get provider or signer");
       }
-
-      // First, request a signature from the user
-      console.log("🔏 Requesting signature approval...");
-      const message = "I confirm that I want to verify my Twitter account with GMCoin";
-      const messageHash = ethers.solidityPackedKeccak256(
-        ["string"],
-        [message]
-      );
       
-      // Explicitly request signature from the user
-      let signature;
-      try {
-        signature = await signer.signMessage(ethers.getBytes(messageHash));
-        console.log("✅ Signature approved:", signature);
-      } catch (signError) {
-        console.log("❌ User rejected signature request");
-        setTransactionStatus("error");
-        setErrorMessage("Signature request was rejected");
-        return;
-      }
-
+      const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+  
       const address = await signer.getAddress();
+      const balance = await browserProvider.getBalance(address);
+      console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
+  
+      let txReceipt;
+  
+      // Check if method exists in contract before calling it
+      if (!contract.verifyTwitterAccount) {
+        throw new Error("Contract method 'verifyTwitterAccount' does not exist");
+      }
       
-      // Use API relay for all cases to avoid ENS issues
-      console.log("🔹 Using API relay...");
+      let txHash;
+      let estimatedGas;
+      let totalGasCost = BigInt(0);
+
+      // Wrap gas estimation in try-catch to prevent errors
       try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            accessToken,
-            signature,
-            wallet: address,
-          }),
-        });
+        // Try to estimate gas
+        estimatedGas = await contract.verifyTwitterAccount.estimateGas(
+          twitterUserId
+        );
+        console.log(`⛽ Estimated gas: ${estimatedGas.toString()}`);
 
-        if (!response.ok) {
-          throw new Error(`API Error: ${response.status} ${response.statusText}`);
-        }
-
-        const txReceipt = await response.json();
-        console.log("API response:", txReceipt);
-
-        // Set up background event listener
-        setupEventListener();
-
-        // Mark the user as having completed verification
-        localStorage.setItem("hasCompletedTwitterVerification", "true");
-
-        // Set success status
-        setTransactionStatus("success");
-        sessionStorage.removeItem("code");
-        sessionStorage.removeItem("verifier");
-      } catch (apiError: any) {
-        console.error("❌ API Error:", apiError);
-        setErrorMessage(getErrorMessage(apiError));
-        setTransactionStatus("error");
-        throw apiError;
+        const gasPrice = await browserProvider.getFeeData();
+        totalGasCost = BigInt(estimatedGas) * gasPrice.gasPrice!;
+        console.log(`💰 Gas cost: ${ethers.formatEther(totalGasCost)} ETH`);
+      } catch (gasError) {
+        console.log("Failed to estimate gas, assuming balance is insufficient:", gasError);
+        // If gas estimation fails, set a flag to use relay
+        totalGasCost = balance + BigInt(1); // Set cost higher than balance
       }
 
+      // Now balance check will work properly
+      if (balance > totalGasCost * 2n) {
+        console.log("🔹 Sending contract transaction...");
+        console.log("TwitterUserId:", twitterUserId);
+        
+        const tx = await contract.verifyTwitterAccount(
+          twitterUserId
+        );
+        txHash = tx.hash;
+        console.log("Transaction hash:", txHash);
+        
+        // Wait for transaction confirmation, but not for events
+        txReceipt = await tx.wait();
+        console.log("Transaction confirmed:", txReceipt);
+      } else {
+        console.log("🔹 Using API relay...");
+        try {
+          // Force signature even when using API relay
+          const signature = await signer.signMessage("GM Coin Twitter Verification");
+          console.log("Signature received:", signature);
+          
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken,
+              signature,
+              wallet: address,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              `API Error: ${response.status} ${response.statusText}`
+            );
+          }
+
+          txReceipt = await response.json();
+          console.log("API response:", txReceipt);
+        } catch (apiError: any) {
+          console.error("❌ API Error:", apiError);
+          
+          // Check if user rejected signature
+          if (
+            apiError.code === 4001 || 
+            apiError.message?.includes("user rejected") ||
+            apiError.message?.includes("User denied") ||
+            apiError.message?.includes("User rejected") ||
+            apiError.message?.includes("cancelled")
+          ) {
+            // Return signature cancellation error to be handled in SendContract
+            throw new Error("Transaction cancelled by user");
+          }
+          
+          throw new Error(`Relayer service error: ${apiError.message}`);
+        }
+      }
+    
+      // Set up background event listener to log events but don't wait for it
+      setupEventListener();
+      
+      // Mark the user as having completed verification
+      localStorage.setItem("hasCompletedTwitterVerification", "true");
+      
+      // Set success status after transaction completion
+      setTransactionStatus("success");
+      sessionStorage.removeItem("code");
+      sessionStorage.removeItem("verifier");
     } catch (error: any) {
       console.error("❌ Transaction Error:", error);
-
-      // Check if we have the required data despite the error
-      const postErrorTwitterUserId = localStorage.getItem("twitterUserId");
-      const postErrorEncryptedToken = sessionStorage.getItem(
-        "encryptedAccessToken"
-      );
-      const postErrorTwitterName = localStorage.getItem("twitterName");
-
-      if (
-        postErrorTwitterUserId &&
-        postErrorEncryptedToken &&
-        postErrorTwitterName
-      ) {
-        console.log(
-          "Transaction error but required data is available, marking as success"
-        );
-        // Still mark as completed since data is available
-        localStorage.setItem("hasCompletedTwitterVerification", "true");
-        setTransactionStatus("success");
-      } else {
-        setErrorMessage(getErrorMessage(error));
-        setTransactionStatus("error");
-        throw error;
-      }
+      
+      // Remove automatic success marking on error
+      // if (postErrorTwitterUserId && postErrorEncryptedToken && postErrorTwitterName) {
+      //   console.log("Transaction error but required data is available, marking as success");
+      //   localStorage.setItem("hasCompletedTwitterVerification", "true");
+      //   setTransactionStatus("success");
+      // } else {
+      setErrorMessage(getErrorMessage(error));
+      setTransactionStatus("error");
+      throw error;
+      // }
     }
   };
 

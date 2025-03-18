@@ -93,12 +93,12 @@ const SendContract: React.FC<SendContractProps> = ({
   const handleReconnectWalletClick = () => reconnectWallet(setWalletAdd);
   const handleReconnectTwitterClick = () => reconnectTwitter();
 
-  // Мониторинг изменений сети
+  // Network change monitoring
   useEffect(() => {
-    // Устанавливаем слушатель изменений сети
+    // Set up network change listener
     const cleanup = setupNetworkMonitoring();
 
-    // Проверяем сеть при монтировании компонента
+    // Check network when component mounts
     checkNetwork();
 
     return cleanup;
@@ -292,9 +292,9 @@ const SendContract: React.FC<SendContractProps> = ({
       verifier.substring(0, 5) + "..." + verifier.substring(verifier.length - 5)
     );
 
-    // Устанавливаем флаг, что попытка авторизации была сделана
+    // Set flag that authorization attempt was made
     setAuthAttempted(true);
-    // Отмечаем, что авторизация обрабатывается
+    // Mark that authorization is being processed
     sessionStorage.setItem("auth_processing", "true");
 
     setIsTwitterLoading(true);
@@ -418,8 +418,9 @@ const SendContract: React.FC<SendContractProps> = ({
         error.message?.includes("User rejected") ||
         error.message?.includes("cancelled")
       ) {
-        // Just close the modal
-        setModalState(null);
+        // Changed: now showing error modal when signature is rejected
+        setErrorMessage("Transaction cancelled");
+        setModalState("error");
         return;
       }
 
@@ -633,7 +634,7 @@ const SendContract: React.FC<SendContractProps> = ({
               <button
                 className={styles.successButton}
                 onClick={() => {
-                  // Убедимся, что все данные сохранены перед переходом
+                  // Make sure all data is saved before navigation
                   if (connectedWallet?.accounts[0]?.address) {
                     localStorage.setItem(
                       "walletAddress",
@@ -641,16 +642,16 @@ const SendContract: React.FC<SendContractProps> = ({
                     );
                   }
 
-                  // Устанавливаем флаг аутентификации
+                  // Set authentication flag
                   localStorage.setItem("userAuthenticated", "true");
 
-                  // Сохраняем информацию о том, что пользователь завершил верификацию
+                  // Save information that user has completed verification
                   localStorage.setItem(
                     "hasCompletedTwitterVerification",
                     "true"
                   );
 
-                  // Переходим на дашборд
+                  // Redirect to dashboard
                   router.push("/");
                 }}
               >
