@@ -6,6 +6,7 @@ import Modal from "../../modals/Modal";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
+import { useTwitterActions } from "@/src/hooks/useTwitterActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
 import { useConnectWallet } from "@web3-onboard/react";
 import { CURRENT_CHAIN } from "@/src/config";
@@ -76,7 +77,6 @@ const SendContract: React.FC<SendContractProps> = ({
   const {
     switchNetwork,
     reconnectWallet,
-    reconnectTwitter,
     fetchTwitterAccessToken,
     checkNetwork,
     setupNetworkMonitoring,
@@ -90,8 +90,14 @@ const SendContract: React.FC<SendContractProps> = ({
     setUser,
   });
 
+  const { handleReconnectTwitter } = useTwitterActions({
+    setModalState,
+    setErrorMessage,
+    setUser,
+  });
+
   const handleReconnectWalletClick = () => reconnectWallet(setWalletAdd);
-  const handleReconnectTwitterClick = () => reconnectTwitter();
+  const handleReconnectTwitterClick = () => handleReconnectTwitter();
 
   // Network change monitoring
   useEffect(() => {

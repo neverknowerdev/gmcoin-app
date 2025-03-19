@@ -8,6 +8,7 @@ export const CONTRACT_ABI = [
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
   "function name() view returns (string)",
+  "function requestTwitterVerification(string accessCodeEncrypted, string userID)",
   "function verifyTwitterAccount(string userID) returns (bool)",
   "event Transfer(address indexed from, address indexed to, uint256 value)",
   "event TwitterVerificationResult(string userID, address wallet, bool isSuccess, string errorMsg)",
