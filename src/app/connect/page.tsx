@@ -219,11 +219,6 @@ export default function Home() {
       console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
   
       let txReceipt;
-  
-      // Check if method exists in contract before calling it
-      if (!contract.verifyTwitterAccount) {
-        throw new Error("Contract method 'verifyTwitterAccount' does not exist");
-      }
       
       let txHash;
       let estimatedGas;
