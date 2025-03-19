@@ -18,6 +18,7 @@ import SunLoader from "../../components/ui/loader/loader";
 import { useWallet } from "../../context/WalletContext";
 import ProgressNavigation from "../../components/features/ProgressNavigation/ProgressNavigation";
 import { getErrorMessage } from "../../hooks/errorHandler";
+import { STORAGE_KEYS } from "@/src/constants/storage";
 
 export default function Home() {
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -43,13 +44,13 @@ export default function Home() {
   // First, check if the user is already authenticated
   useEffect(() => {
     const checkStoredData = () => {
-      const twitterUserId = localStorage.getItem("twitterUserId");
+      const twitterUserId = localStorage.getItem(STORAGE_KEYS.TWITTER_USER_ID);
       const encryptedAccessToken = sessionStorage.getItem(
-        "encryptedAccessToken"
+        STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN
       );
-      const twitterName = localStorage.getItem("twitterName");
+      const twitterName = localStorage.getItem(STORAGE_KEYS.TWITTER_NAME);
       const hasCompletedTx = localStorage.getItem(
-        "hasCompletedTwitterVerification"
+        STORAGE_KEYS.HAS_COMPLETED_VERIFICATION
       );
 
       if (twitterUserId && encryptedAccessToken && twitterName) {
@@ -97,10 +98,10 @@ export default function Home() {
       const authorizationCode = params.get("code");
 
       // Check saved Twitter data
-      const twitterName = localStorage.getItem("twitterName");
-      const twitterUserId = localStorage.getItem("twitterUserId");
+      const twitterName = localStorage.getItem(STORAGE_KEYS.TWITTER_NAME);
+      const twitterUserId = localStorage.getItem(STORAGE_KEYS.TWITTER_USER_ID);
       const encryptedAccessToken = sessionStorage.getItem(
-        "encryptedAccessToken"
+        STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN
       );
 
       // If the username is missing or equals "..", but ID and token exist,
@@ -115,7 +116,7 @@ export default function Home() {
           console.log("Trying to fetch Twitter username again");
           // Temporary solution - set some default value
           localStorage.setItem(
-            "twitterName",
+            STORAGE_KEYS.TWITTER_NAME,
             "@" + twitterUserId.substring(0, 8)
           );
         } catch (error) {
@@ -126,7 +127,7 @@ export default function Home() {
       if (authorizationCode) {
         console.log("Found authorization code in URL");
         setIsTwitterConnected(true);
-        sessionStorage.setItem("code", authorizationCode);
+        sessionStorage.setItem(STORAGE_KEYS.CODE, authorizationCode);
         const newUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
         setCurrentStep(2);
@@ -134,7 +135,7 @@ export default function Home() {
           setCurrentStep(2);
         }
       } else {
-        const storedCode = sessionStorage.getItem("code");
+        const storedCode = sessionStorage.getItem(STORAGE_KEYS.CODE);
         if (storedCode) {
           setIsTwitterConnected(true);
         }
@@ -151,11 +152,13 @@ export default function Home() {
     if (typeof window === "undefined") return;
 
     // Check if user is a returning user
-    const twitterUserId = localStorage.getItem("twitterUserId");
-    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const twitterName = localStorage.getItem("twitterName");
+    const twitterUserId = localStorage.getItem(STORAGE_KEYS.TWITTER_USER_ID);
+    const encryptedAccessToken = sessionStorage.getItem(
+      STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN
+    );
+    const twitterName = localStorage.getItem(STORAGE_KEYS.TWITTER_NAME);
     const hasCompletedTx = localStorage.getItem(
-      "hasCompletedTwitterVerification"
+      STORAGE_KEYS.HAS_COMPLETED_VERIFICATION
     );
 
     if (
@@ -174,7 +177,7 @@ export default function Home() {
 
     setIsTwitterLoading(true);
     const codeVerifier = generateCodeVerifier();
-    sessionStorage.setItem("verifier", codeVerifier);
+    sessionStorage.setItem(STORAGE_KEYS.VERIFIER, codeVerifier);
 
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     console.log("Generated challenge:", codeChallenge);
@@ -194,11 +197,11 @@ export default function Home() {
       return;
     }
 
-    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const accessToken = sessionStorage.getItem("accessToken");
-    const twitterUserId = localStorage.getItem("twitterUserId");
+    const encryptedAccessToken = sessionStorage.getItem(STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
+    const accessToken = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    const twitterUserId = localStorage.getItem(STORAGE_KEYS.TWITTER_USER_ID);
     const hasCompletedTx = localStorage.getItem(
-      "hasCompletedTwitterVerification"
+      STORAGE_KEYS.HAS_COMPLETED_VERIFICATION
     );
 
     console.log("encryptedAccessToken", encryptedAccessToken);
@@ -208,7 +211,7 @@ export default function Home() {
     if (
       twitterUserId &&
       encryptedAccessToken &&
-      localStorage.getItem("twitterName") &&
+      localStorage.getItem(STORAGE_KEYS.TWITTER_NAME) &&
       hasCompletedTx === "true"
     ) {
       console.log("✅ Returning user, skipping transaction");
@@ -385,12 +388,12 @@ export default function Home() {
     setupEventListener();
 
     // Mark the user as having completed verification
-    localStorage.setItem("hasCompletedTwitterVerification", "true");
+    localStorage.setItem(STORAGE_KEYS.HAS_COMPLETED_VERIFICATION, "true");
 
     // Set success status after transaction completion
     setTransactionStatus("success");
-    sessionStorage.removeItem("code");
-    sessionStorage.removeItem("verifier");
+    sessionStorage.removeItem(STORAGE_KEYS.CODE);
+    sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
   };
 
   // Optional background event listener that doesn't block UI flow
@@ -399,7 +402,7 @@ export default function Home() {
       // Save wallet address for event checking
       if (connectedWallet?.accounts[0]?.address) {
         localStorage.setItem(
-          "walletAddress",
+          STORAGE_KEYS.WALLET_ADDRESS,
           connectedWallet.accounts[0].address
         );
       }
@@ -407,7 +410,7 @@ export default function Home() {
       // Set up periodic polling of events through our API
       const pollInterval = setInterval(async () => {
         try {
-          const walletAddress = localStorage.getItem("walletAddress");
+          const walletAddress = localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS);
           if (!walletAddress) return;
 
           const response = await fetch("/api/events", {
@@ -469,16 +472,16 @@ export default function Home() {
     if (currentStep === 2) {
       setCurrentStep(1);
       setTransactionStatus("idle");
-      sessionStorage.removeItem("code");
-      sessionStorage.removeItem("verifier");
+      sessionStorage.removeItem(STORAGE_KEYS.CODE);
+      sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
       setIsTwitterConnected(false);
     } else if (currentStep === 1) {
       setCurrentStep(0);
       await disconnect();
     } else if (currentStep === 0) {
       setIsTwitterConnected(false);
-      sessionStorage.removeItem("code");
-      sessionStorage.removeItem("verifier");
+      sessionStorage.removeItem(STORAGE_KEYS.CODE);
+      sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
     }
   };
 
