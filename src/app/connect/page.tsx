@@ -331,7 +331,7 @@ export default function Home() {
     try {
       // Force signature even when using API relay
       const signature = await signer.signMessage(
-        "I confirm that I am connecting my Twitter account to GM Coin. This signature does not submit any blockchain transaction or spend any funds."
+        "I confirm that I want to verify my Twitter account with GMCoin"
       );
       console.log("Signature received:", signature);
 
