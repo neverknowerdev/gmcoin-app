@@ -580,7 +580,6 @@ const SendContract: React.FC<SendContractProps> = ({
         <Modal onClose={() => setModalState(null)}>
           {modalState === "loading" && (
             <div className={styles.modalContent}>
-              <p>Transaction in progress...</p>
               <div className={styles.loadingContainer}>
                 <div className={styles.loadingText}>
                   <span>W</span>
@@ -596,14 +595,13 @@ const SendContract: React.FC<SendContractProps> = ({
                   <span>R</span>
                 </div>
                 <div className={styles.loadingText}>
-                  <span>R</span>
-                  <span>E</span>
-                  <span>S</span>
-                  <span>P</span>
+                  <span>C</span>
                   <span>O</span>
                   <span>N</span>
-                  <span>S</span>
-                  <span>E</span>
+                  <span>F</span>
+                  <span>I</span>
+                  <span>R</span>
+                  <span>M</span>
                 </div>
               </div>
             </div>
