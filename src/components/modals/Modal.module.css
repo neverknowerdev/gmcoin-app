@@ -92,6 +92,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -102,9 +103,11 @@
     opacity: 0;
     transform: scale(0.8);
   }
+
   60% {
     transform: scale(1.05);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -112,31 +115,37 @@
 }
 
 @keyframes sunFloat {
+
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
 }
 
 @keyframes blink {
+
   0%,
   90%,
   100% {
     transform: scaleY(1);
   }
+
   95% {
     transform: scaleY(0.1);
   }
 }
 
 @keyframes greetingBounce {
+
   0%,
   100% {
     transform: rotate(15deg) translateY(0);
   }
+
   50% {
     transform: rotate(15deg) translateY(-5px);
   }
@@ -147,6 +156,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

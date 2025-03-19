@@ -403,15 +403,15 @@ const SendContract: React.FC<SendContractProps> = ({
   const handleSendTransaction = async () => {
     try {
       setModalState("loading");
-      
+
       // Check network before sending transaction
       const networkCorrect = await ensureCorrectNetwork();
       if (!networkCorrect) return;
-      
+
       // Add a timeout to detect if the transaction is taking too long
       // This helps catch cases when a user closes the wallet window without rejecting
       let transactionComplete = false;
-      
+
       // Create promise race between transaction and timeout
       await Promise.race([
         // Regular transaction
@@ -419,7 +419,7 @@ const SendContract: React.FC<SendContractProps> = ({
           try {
             await sendTransaction();
             transactionComplete = true;
-            
+
             // Save verification status only after successful transaction
             localStorage.setItem("hasCompletedTwitterVerification", "true");
             setModalState("success");
@@ -428,23 +428,26 @@ const SendContract: React.FC<SendContractProps> = ({
             throw txError;
           }
         })(),
-        
-        // Timeout to detect closed window (30 seconds should be enough for user to decide)
+
+        // Timeout to detect closed window (2 minutes should be enough for user to decide)
         new Promise((_, reject) => {
           setTimeout(() => {
             if (!transactionComplete) {
-              reject(new Error("Transaction timed out - signature window may have been closed"));
+              reject(
+                new Error(
+                  "Transaction timed out - signature window may have been closed"
+                )
+              );
             }
-          }, 15000);
-        })
+          }, 120000);
+        }),
       ]);
-      
     } catch (error: any) {
       console.error("Transaction error:", error);
-      
-      // Check for all possible user rejection scenarios, including timeout
+
+      // Check for all possible user rejection scenarios, incl  uding timeout
       if (
-        error.code === 4001 || 
+        error.code === 4001 ||
         error.message?.includes("user rejected") ||
         error.message?.includes("User denied") ||
         error.message?.includes("User rejected") ||
@@ -460,7 +463,7 @@ const SendContract: React.FC<SendContractProps> = ({
         setModalState("error");
         return;
       }
-      
+
       // For other errors show error message
       const errorMessage = getErrorMessage(error);
       setErrorMessage(errorMessage);
@@ -557,19 +560,50 @@ const SendContract: React.FC<SendContractProps> = ({
       </div>
 
       {modalState && (
+        // <Modal onClose={() => setModalState(null)}>
+        //   {modalState === "loading" && (
+        //     <div className={styles.modalContent}>
+        //       <p>Transaction in progress...</p>
+        //       <div className={styles.loadingContainer}>
+        //         <div className={styles.loadingText}>
+        //           <span>S</span>
+        //           <span>E</span>
+        //           <span>N</span>
+        //           <span>D</span>
+        //           <span>I</span>
+        //           <span>N</span>
+        //           <span>G</span>
+        //         </div>
+        //       </div>
+        //     </div>
+        //   )}
         <Modal onClose={() => setModalState(null)}>
           {modalState === "loading" && (
             <div className={styles.modalContent}>
               <p>Transaction in progress...</p>
               <div className={styles.loadingContainer}>
                 <div className={styles.loadingText}>
-                  <span>S</span>
-                  <span>E</span>
-                  <span>N</span>
-                  <span>D</span>
+                  <span>W</span>
+                  <span>A</span>
+                  <span>T</span>
                   <span>I</span>
                   <span>N</span>
                   <span>G</span>
+                </div>
+                <div className={styles.loadingText}>
+                  <span>F</span>
+                  <span>O</span>
+                  <span>R</span>
+                </div>
+                <div className={styles.loadingText}>
+                  <span>R</span>
+                  <span>E</span>
+                  <span>S</span>
+                  <span>P</span>
+                  <span>O</span>
+                  <span>N</span>
+                  <span>S</span>
+                  <span>E</span>
                 </div>
               </div>
             </div>

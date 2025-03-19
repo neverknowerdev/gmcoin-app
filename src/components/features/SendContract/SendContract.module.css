@@ -9,6 +9,7 @@
   position: relative;
   overflow: hidden;
 }
+
 .loaderOverlay {
   position: fixed;
   inset: 0;
@@ -19,6 +20,7 @@
   justify-content: center;
   z-index: 1000;
 }
+
 .title {
   -webkit-text-stroke: 1px white;
   margin-top: 50px;
@@ -55,6 +57,7 @@
   width: 150px;
   margin-left: 30px;
 }
+
 .goodEmoji {
   width: 150px;
 }
@@ -97,6 +100,7 @@
   transform: perspective(1000px) translateY(4px);
   box-shadow: 0 2px 0 #70cc00, 0 4px 5px rgba(0, 0, 0, 0.2);
 }
+
 .reconnectButton {
   position: absolute;
   top: 8px;
@@ -118,6 +122,7 @@
   box-shadow: 0 6px 0 #58cc00, 0 8px 10px rgba(0, 0, 0, 0.2);
   z-index: 10;
 }
+
 .tryButton {
   gap: 3px;
   background: linear-gradient(135deg, #66ff00, #80ff00);
@@ -136,6 +141,7 @@
   box-shadow: 0 6px 0 #58cc00, 0 8px 10px rgba(0, 0, 0, 0.2);
   z-index: 10;
 }
+
 /* SocialButtons.module.css */
 .twittButton {
   background: linear-gradient(135deg, #1e90ff, #4169e1);
@@ -169,6 +175,7 @@
 .icon {
   margin-right: 8px;
 }
+
 .closeText {
   color: white;
   font-family: "Cherry Bomb One", sans-serif;
@@ -189,6 +196,7 @@
     rainbowFloat 6s ease-in-out infinite;
   opacity: 0;
 }
+
 .rainbow img {
   width: 330px;
   height: 102vh;
@@ -204,6 +212,7 @@
     balloonFloat 6s ease-in-out infinite;
   filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.2));
 }
+
 .balloon img {
   width: 300px;
 }
@@ -235,11 +244,13 @@
   opacity: 0;
   transform: translateY(20px);
 }
+
 @keyframes floatBalloon {
   0%,
   100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-20px);
   }
@@ -345,6 +356,7 @@
 .input:hover::after {
   opacity: 1;
 }
+
 /* Кнопка очистки */
 
 .modalContent {
@@ -358,6 +370,7 @@
   border-radius: 20px;
   text-align: center;
 }
+
 /* 
 @keyframes inputPulse {
   0%,
@@ -378,6 +391,7 @@
   100% {
     transform: translateX(10px) translateY(-1px);
   }
+
   50% {
     transform: translateX(10px) translateY(1px);
   }
@@ -389,6 +403,7 @@
     transform: rotate(-35deg) scale(1);
     opacity: 0.8;
   }
+
   50% {
     transform: rotate(-35deg) scale(1.2);
     opacity: 1;
@@ -400,9 +415,11 @@
   100% {
     transform: translateY(-50%) rotate(0deg);
   }
+
   25% {
     transform: translateY(-50%) rotate(-15deg);
   }
+
   75% {
     transform: translateY(-50%) rotate(15deg);
   }
@@ -414,6 +431,7 @@
   width: 100%;
   height: 100%;
 }
+
 .buttonContainer {
   margin-left: 100px;
   margin-top: 40px;
@@ -426,6 +444,7 @@
   align-items: center;
   animation: buttonEntrance 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+
 .connectButton,
 .createButton {
   position: relative;
@@ -438,6 +457,7 @@
   /* overflow: hidden; */
   transition: all 0.3s ease;
 }
+
 .buttonText {
   position: relative;
   z-index: 2;
@@ -451,6 +471,7 @@
   animation: textGlow 2s infinite;
   -webkit-text-stroke: 0.5px black;
 }
+
 .createButton::before {
   content: "";
   position: absolute;
@@ -483,6 +504,7 @@
 .createButton:active {
   transform: scale(0.98);
 }
+
 @keyframes portalPulse {
   0%,
   100% {
@@ -491,6 +513,7 @@
       0 15px 30px rgba(255, 184, 0, 0.25);
     transform: translateY(-6px) scale(1.02);
   }
+
   50% {
     box-shadow: inset 0 0 30px rgba(255, 184, 0, 0.3), 0 0 0 2px #ffa500,
       0 0 35px rgba(255, 184, 0, 0.35), 0 12px 0 #ff9500,
@@ -498,22 +521,26 @@
     transform: translateY(-8px) scale(1.03);
   }
 }
+
 @keyframes textGlow {
   0%,
   100% {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
+
   50% {
     text-shadow: 0 0 8px rgba(255, 255, 255, 0.5),
       0 0 12px rgba(0, 153, 255, 0.5);
   }
 }
+
 @keyframes rainbowEntry {
   0% {
     opacity: 0;
     left: -100%;
     transform: rotate(-30deg) scale(0.8);
   }
+
   100% {
     opacity: 1;
     left: 5%;
@@ -526,6 +553,7 @@
   100% {
     transform: rotate(0deg) scale(1);
   }
+
   50% {
     transform: rotate(3deg) scale(1.02);
   }
@@ -537,15 +565,18 @@
     bottom: -100%;
     transform: translate(0, 0) rotate(-15deg) scale(0.8);
   }
+
   60% {
     opacity: 1;
     bottom: 40%;
     transform: translate(0, 0) rotate(5deg) scale(1.1);
   }
+
   80% {
     bottom: 35%;
     transform: translate(0, 0) rotate(-3deg) scale(0.95);
   }
+
   100% {
     opacity: 1;
     bottom: 30%;
@@ -558,12 +589,15 @@
   100% {
     transform: translate(0, 0) rotate(0deg);
   }
+
   25% {
     transform: translate(5px, -15px) rotate(3deg);
   }
+
   50% {
     transform: translate(0, -20px) rotate(-2deg);
   }
+
   75% {
     transform: translate(-5px, -15px) rotate(3deg);
   }
@@ -574,6 +608,7 @@
     opacity: 0;
     transform: translateY(30px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -585,10 +620,12 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   60% {
     opacity: 1;
     transform: translateY(-5px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -600,13 +637,16 @@
   100% {
     transform: scale(1.02) rotate(0deg);
   }
+
   25% {
     transform: scale(1.02) rotate(-1deg);
   }
+
   75% {
     transform: scale(1.02) rotate(1deg);
   }
 }
+
 .loadingContainer {
   width: 50%;
   max-width: 520px;
@@ -657,10 +697,11 @@
   font-size: 30px;
   line-height: 44px;
   letter-spacing: 5px;
-  margin-bottom: 32px;
+  margin-bottom: 5px;
   display: flex;
   justify-content: space-evenly;
 }
+
 .loadingText span {
   animation: moveLetters 2.4s infinite ease-in-out;
   transform: translatex(0);
@@ -698,9 +739,11 @@
 .loadingText span:nth-child(7) {
   animation-delay: 0.7s;
 }
+
 .loadingText span:nth-child(8) {
   animation-delay: 0.8s;
 }
+
 .loadingText span:nth-child(9) {
   animation-delay: 0.9s;
 }
@@ -722,6 +765,7 @@
     opacity: 0;
   }
 }
+
 .createButton:disabled {
   cursor: not-allowed;
   opacity: 0.7;
@@ -812,21 +856,26 @@
   .rainbow {
     left: -80px !important;
   }
+
   .balloon {
     left: 70px;
   }
 }
+
 @media (max-width: 1066px) {
   .rainbow {
     left: -80px !important;
   }
+
   .balloon {
     left: 40px;
   }
+
   .rainbow img {
     width: 250px !important;
     height: 100vw;
   }
+
   .balloon img {
     width: 250px !important;
   }
@@ -835,42 +884,52 @@
     position: relative;
     width: 400px;
   }
+
   .input {
     width: 400px !important;
   }
+
   .label {
     margin-left: 40px;
     /* margin-top: 10px; */
     font-size: 25px;
   }
 }
+
 @media (max-width: 900px) {
   .rainbow {
     bottom: 0px;
     left: -80px !important;
   }
+
   .balloon {
     left: 0px;
   }
+
   .rainbow img {
     width: 200px !important;
     height: 100vh;
   }
+
   .balloon img {
     width: 220px !important;
   }
 }
+
 @media (max-width: 720px) {
   .rainbow {
     left: -110px !important;
   }
+
   .title {
     font-size: 26px;
   }
+
   .balloon {
     bottom: 0 !important;
     left: -10px;
   }
+
   .form {
     gap: 5px;
     /* margin-top: 40px; */
@@ -880,6 +939,7 @@
     font-size: 22px;
   }
 }
+
 @media (max-width: 530px) {
   .buttonContainer {
     margin-left: 0;
@@ -887,16 +947,19 @@
     width: 250px;
     height: 95px;
   }
+
   .inputGroup {
     position: relative;
     width: 340px;
   }
+
   .input {
     height: 60px;
     font-size: 20px;
     width: 340px !important;
   }
 }
+
 @media (max-width: 450px) {
   .buttonContainer {
     margin-left: 0;
@@ -904,22 +967,27 @@
     width: 230px;
     height: 85px;
   }
+
   .inputGroup {
     position: relative;
     width: 310px;
     padding: 0 !important;
   }
+
   .input {
     height: 50px;
     width: 310px !important;
   }
+
   .rainbow img {
     width: 200px !important;
     height: 100vh;
   }
+
   .balloon img {
     width: 190px !important;
   }
+
   .reconnectButton {
     position: absolute;
     top: 5px;
@@ -936,12 +1004,15 @@
     width: 180px !important;
     height: 100vh;
   }
+
   .balloon img {
     width: 170px !important;
   }
+
   .rainbow {
     left: -110px !important;
   }
+
   .balloon {
     bottom: -20px !important;
   }
