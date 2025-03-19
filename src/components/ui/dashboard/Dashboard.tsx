@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import styles from "./Dashboard.module.css";
 import { UserInfo } from "./UserInfo/UserInfo";
-import { EventList } from "./EventList/EventList";
+// import EventList from "./EventList/EventList";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
 import { useWeb3 } from "@/src/hooks/useWeb3";
-import ConfirmModal from "./ConfirmModal/ConfirmModal";
+// import ConfirmModal from "./ConfirmModal/ConfirmModal";
 import { STORAGE_KEYS } from "@/src/constants/storage";
 
 export const Dashboard = () => {
@@ -17,7 +17,7 @@ export const Dashboard = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { connect, disconnect, getProvider, getSigner } = useWeb3();
-  const { handleReconnectWallet } = useWalletActions({
+  const { reconnectWallet } = useWalletActions({
     connect,
     setModalState,
     setErrorMessage,
@@ -72,7 +72,7 @@ export const Dashboard = () => {
 
   const handleReconnect = async () => {
     try {
-      const newWalletAddress = await handleReconnectWallet(setWalletAddress);
+      const newWalletAddress = await reconnectWallet(setWalletAddress);
       if (newWalletAddress) {
         setWalletAddress(newWalletAddress);
       }
@@ -91,7 +91,6 @@ export const Dashboard = () => {
             onDisconnect={handleDisconnect}
             signer={getSigner()}
           />
-          <EventList />
         </>
       ) : (
         <div className={styles.reconnectContainer}>
@@ -101,7 +100,7 @@ export const Dashboard = () => {
           </button>
         </div>
       )}
-
+{/* 
       {showConfirmModal && (
         <ConfirmModal
           onConfirm={confirmDisconnect}
@@ -109,7 +108,7 @@ export const Dashboard = () => {
           title="Disconnect Wallet"
           message="Are you sure you want to disconnect your wallet? You will need to reconnect to access your account."
         />
-      )}
+      )} */}
     </div>
   );
 }; 
