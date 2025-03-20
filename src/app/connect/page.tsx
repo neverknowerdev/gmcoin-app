@@ -31,6 +31,7 @@ export default function Home() {
     "idle" | "pending" | "success" | "error" | "sending"
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isSignatureRequested, setIsSignatureRequested] = useState(false);
   const {
     connectedWallet,
     connect,
@@ -197,16 +198,11 @@ export default function Home() {
       return;
     }
 
-
-    // TEST ERROR
-    // console.log("Generating test error for debugging...");
-    // const testError = new Error("No many");
-    // testError.message = "Some error";
-    // console.error("❌ Test Error:", testError);
-    // setErrorMessage(getErrorMessage(testError));
-    // setTransactionStatus("error");
-    // throw testError;
-
+    // Check if signature process is already in progress
+    if (isSignatureRequested) {
+      console.log("⚠️ Signature request already in progress, skipping");
+      return;
+    }
 
     const encryptedAccessToken = sessionStorage.getItem(STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
     const accessToken = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
@@ -294,6 +290,8 @@ export default function Home() {
         console.error("❌ Transaction Error:", gasError);
         setErrorMessage(getErrorMessage(gasError as any));
         setTransactionStatus("error");
+        // Reset signature flag in case of error
+        setIsSignatureRequested(false);
         throw gasError;
       }
 
@@ -327,6 +325,8 @@ export default function Home() {
             console.error("❌ Transaction Error:", txError);
             setErrorMessage(getErrorMessage(txError));
             setTransactionStatus("error");
+            // Reset signature flag in case of error
+            setIsSignatureRequested(false);
             throw txError;
           }
 
@@ -345,6 +345,8 @@ export default function Home() {
           console.error("❌ Transaction error:", txError);
           setErrorMessage(getErrorMessage(txError));
           setTransactionStatus("error");
+          // Reset signature flag in case of error
+          setIsSignatureRequested(false);
           throw txError;
         }
       } else {
@@ -356,6 +358,8 @@ export default function Home() {
       console.error("❌ Transaction Error:", error);
       setErrorMessage(getErrorMessage(error));
       setTransactionStatus("error");
+      // Reset signature flag in case of error
+      setIsSignatureRequested(false);
       throw error;
     }
   };
@@ -368,10 +372,27 @@ export default function Home() {
   ) => {
     console.log("🔹 Using API relay...");
     try {
+      // Check if signature has already been requested
+      if (isSignatureRequested) {
+        console.log("⚠️ Signature request already in progress, skipping");
+        return;
+      }
+      
+      // Set flag indicating signature has been requested
+      setIsSignatureRequested(true);
+      
       // Force signature even when using API relay
       const signature = await signer.signMessage(
         "I confirm that I want to verify my Twitter account with GMCoin"
-      );
+      ).catch((error) => {
+        // Reset signature flag if user cancelled the signing
+        setIsSignatureRequested(false);
+        console.log("❌ Signature request cancelled by user");
+        setTransactionStatus("error");
+        setErrorMessage("User rejected action");
+        throw error;
+      });
+      
       console.log("Signature received:", signature);
       
       // Change status to sending after signature is received
@@ -385,6 +406,11 @@ export default function Home() {
           signature,
           wallet: address,
         }),
+      }).catch((error) => {
+        // Reset signature flag on network error
+        setIsSignatureRequested(false);
+        console.error("❌ Network error:", error);
+        throw error;
       });
 
       if (!response.ok) {
@@ -396,6 +422,9 @@ export default function Home() {
         } catch (e) {
           errorMessage = `API Error: ${response.status} ${response.statusText}`;
         }
+        
+        // Reset signature flag in case of error
+        setIsSignatureRequested(false);
         throw new Error(errorMessage);
       }
 
@@ -417,17 +446,23 @@ export default function Home() {
         apiError.message?.includes("window closed") ||
         apiError.message?.includes("user closed")
       ) {
+        // Reset signature flag if user cancelled the signing
+        setIsSignatureRequested(false);
         // Return cancellation error to be handled in SendContract
-        throw new Error("Transaction cancelled by user");
+        throw new Error("User rejected action");
       }
 
       // If the relay service returns 500, provide a user-friendly message
       if (apiError.message?.includes("500")) {
+        // Reset signature flag in case of server error
+        setIsSignatureRequested(false);
         throw new Error(
           "Service temporarily unavailable. Please try again later."
         );
       }
 
+      // Reset signature flag in case of any other error
+      setIsSignatureRequested(false);
       throw new Error(`Relayer service error: ${apiError.message}`);
     }
   };
@@ -444,6 +479,9 @@ export default function Home() {
     setTransactionStatus("success");
     sessionStorage.removeItem(STORAGE_KEYS.CODE);
     sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
+    
+    // Reset signature flag after successful completion
+    setIsSignatureRequested(false);
   };
 
   // Optional background event listener that doesn't block UI flow

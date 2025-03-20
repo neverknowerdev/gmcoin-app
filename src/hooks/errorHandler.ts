@@ -4,7 +4,7 @@ export const errorHandlers = [
       error?.code === 4001 ||
       error?.code === "ACTION_REJECTED" ||
       error?.message.toLowerCase().includes("user rejected"),
-    message: "Transaction cancelled by user.",
+    message: "User rejected action",
   },
   {
     condition: (error: any) =>
@@ -57,9 +57,12 @@ export const getErrorMessage = (error: any): string => {
     error.message?.includes("user rejected") ||
     error.message?.includes("User denied") ||
     error.message?.includes("User rejected") ||
-    error.message?.includes("cancelled")
+    error.message?.includes("cancelled") ||
+    error.message?.includes("window closed") ||
+    error.message?.includes("user closed") ||
+    error.message?.includes("Transaction cancelled by user")
   ) {
-    return "Transaction cancelled";
+    return "User rejected action";
   }
 
   // Check for network errors

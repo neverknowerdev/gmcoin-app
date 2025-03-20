@@ -402,21 +402,66 @@ const SendContract: React.FC<SendContractProps> = ({
     }
   }, [connectedWallet]);
 
-  // Update modal state whenever transactionStatus changes
+  // React to transaction status changes
   useEffect(() => {
-    if (transactionStatus === "pending") {
-      setModalState("loading");
-    } else if (transactionStatus === "sending") {
-      setModalState("sending");
+    if (transactionStatus === "error") {
+      setModalState("error");
     } else if (transactionStatus === "success") {
       setModalState("success");
-    } else if (transactionStatus === "error") {
-      setModalState("error");
+    } else if (transactionStatus === "pending" || transactionStatus === "sending") {
+      setModalState("loading");
     }
   }, [transactionStatus]);
 
+  // Error handling for transaction
+  const handleTransactionError = (error: any) => {
+    let errorMsg = getErrorMessage(error);
+    
+    // Check for user cancellation
+    if (
+      error.code === 4001 ||
+      error.message?.includes("user rejected") ||
+      error.message?.includes("User denied") ||
+      error.message?.includes("User rejected") ||
+      error.message?.includes("cancelled") ||
+      error.message?.includes("window closed") ||
+      error.message?.includes("user closed") ||
+      error.message?.includes("Transaction cancelled by user") ||
+      error.message?.includes("timed out") ||
+      error.message?.includes("timeout")
+    ) {
+      errorMsg = "User rejected action";
+      setErrorMessage(errorMsg);
+      setModalState("error");
+      console.error("💥 Transaction rejected by user:", errorMsg);
+      return;
+    }
+    
+    // Check for "wallet already linked" error
+    if (error.message?.includes("wallet already linked for that user")) {
+      console.log("✅ Wallet already linked for this user, redirecting to dashboard");
+      // Save completed verification information
+      localStorage.setItem("hasCompletedTwitterVerification", "true");
+      localStorage.setItem("userAuthenticated", "true");
+      // Redirect to dashboard
+      router.push("/");
+      return;
+    }
+    
+    // Display error
+    setErrorMessage(errorMsg);
+    setModalState("error");
+    console.error("💥 Transaction error:", errorMsg);
+  };
+
   const handleSendTransaction = async () => {
     try {
+      // Check if transaction is already in progress
+      if (transactionStatus === "pending" || transactionStatus === "sending") {
+        console.log("⚠️ Transaction already in progress, skipping");
+        return;
+      }
+      
       setModalState("loading");
 
       // Check network before sending transaction
@@ -458,42 +503,8 @@ const SendContract: React.FC<SendContractProps> = ({
         }),
       ]);
     } catch (error: any) {
-      console.error("Transaction error:", error);
-
-      // Check for all possible user rejection scenarios, incl  uding timeout
-      if (
-        error.code === 4001 ||
-        error.message?.includes("user rejected") ||
-        error.message?.includes("User denied") ||
-        error.message?.includes("User rejected") ||
-        error.message?.includes("cancelled") ||
-        error.message?.includes("user closed") ||
-        error.message?.includes("window closed") ||
-        error.message?.includes("Transaction cancelled by user") ||
-        error.message?.includes("timed out") ||
-        error.message?.includes("timeout")
-      ) {
-        // Either show error modal or just close the modal
-        setErrorMessage("Transaction cancelled");
-        setModalState("error");
-        return;
-      }
-
-      // Check for "wallet already linked" error
-      if (error.message?.includes("wallet already linked for that user")) {
-        console.log("✅ Wallet already linked for this user, redirecting to dashboard");
-        // Save completed verification information
-        localStorage.setItem("hasCompletedTwitterVerification", "true");
-        localStorage.setItem("userAuthenticated", "true");
-        // Redirect to dashboard
-        router.push("/");
-        return;
-      }
-
-      // For other errors show error message
-      const errorMessage = getErrorMessage(error);
-      setErrorMessage(errorMessage);
-      setModalState("error");
+      // Process error using new method
+      handleTransactionError(error);
     }
   };
 
@@ -685,14 +696,14 @@ const SendContract: React.FC<SendContractProps> = ({
                   className={styles.sadEmoji}
                 />
                 <h3 className={styles.errorTitle}>
-                  {errorMessage === "Transaction cancelled"
-                    ? "Transaction Cancelled"
+                  {errorMessage === "User rejected action"
+                    ? "Transaction Rejected"
                     : "Transaction Failed"}
                 </h3>
                 <p className={styles.errorMessage}>
-                  {errorMessage === "Transaction cancelled"
-                    ? "You cancelled the transaction. Would you like to try again?"
-                    : errorMessage}
+                  {errorMessage === "User rejected action"
+                    ? "You rejected the transaction. Would you like to try again?"
+                    : errorMessage || "An error occurred during the transaction. Please try again."}
                 </p>
               </div>
               <button
