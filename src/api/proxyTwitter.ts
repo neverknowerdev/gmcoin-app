@@ -8,15 +8,15 @@ export default async function handler(req: any, res: any) {
   const url = TOKEN_URL;
 
   if (!url) {
-    console.error("❌ TOKEN_URL не определен в .env!");
+    console.error("❌ TOKEN_URL is not defined in .env!");
     return res.status(500).json({ error: "Server configuration error" });
   }
 
-  // Проверяем наличие необходимых параметров
+  // Check for required parameters
   const { authCode, verifier, redirectUri } = req.body;
 
   if (!authCode || !verifier) {
-    console.error("❌ Отсутствуют обязательные параметры в запросе");
+    console.error("❌ Missing required parameters in request");
     return res.status(400).json({
       error: "Missing required parameters",
       details: {
@@ -27,16 +27,16 @@ export default async function handler(req: any, res: any) {
     });
   }
 
-  // Проверяем, не является ли запрос дубликатом
-  const requestId = `${authCode.substring(0, 10)}_${Date.now()}`;
-  console.log(`📝 Обработка запроса ${requestId}`);
+  // Check if the request is a duplicate
+  const requestId = `${authCode.substring(0, 10)}_${Math.floor(Math.random() * 1000000)}`;
+  console.log(`📝 Processing request ${requestId}`);
 
-  // Убедимся, что redirectUri не содержит лишних параметров
+  // Make sure redirectUri doesn't contain extra parameters
   const cleanRedirectUri = redirectUri
     ? redirectUri.split("?")[0]
     : redirectUri;
 
-  console.log("📤 Отправка запроса к Twitter API:", {
+  console.log("📤 Sending request to Twitter API:", {
     url,
     bodyLength: JSON.stringify(req.body).length,
     hasAuthCode: !!authCode,
@@ -47,11 +47,11 @@ export default async function handler(req: any, res: any) {
   });
 
   try {
-    // Добавляем случайную задержку для предотвращения гонки условий
+    // Add random delay to prevent race conditions
     const randomDelay = Math.floor(Math.random() * 100);
     await new Promise((resolve) => setTimeout(resolve, randomDelay));
 
-    // Создаем модифицированное тело запроса с очищенным redirectUri
+    // Create modified request body with cleaned redirectUri
     const modifiedBody = {
       ...req.body,
       redirectUri: cleanRedirectUri,
@@ -69,23 +69,23 @@ export default async function handler(req: any, res: any) {
       body: JSON.stringify(modifiedBody),
     });
 
-    console.log(`📥 Получен ответ от Twitter API для запроса ${requestId}:`, {
+    console.log(`📥 Received response from Twitter API for request ${requestId}:`, {
       status: response.status,
       statusText: response.statusText,
       headers: Object.fromEntries(response.headers.entries()),
     });
 
-    // Попытка получить тело ответа как текст
+    // Try to get response body as text
     const responseText = await response.text();
-    console.log(`📄 Тело ответа для запроса ${requestId}:`, responseText);
+    console.log(`📄 Response body for request ${requestId}:`, responseText);
 
-    // Попытка преобразовать текст в JSON
+    // Try to parse text to JSON
     let data;
     try {
       data = JSON.parse(responseText);
     } catch (parseError) {
       console.error(
-        `❌ Ошибка при парсинге JSON для запроса ${requestId}:`,
+        `❌ Error parsing JSON for request ${requestId}:`,
         parseError
       );
       return res.status(response.status).json({
@@ -95,11 +95,11 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Проверяем наличие ошибки в ответе
+    // Check for error in response
     if (data.error || data.success === false) {
-      console.error(`❌ Ошибка в ответе API для запроса ${requestId}:`, data);
+      console.error(`❌ API Error for request ${requestId}:`, data);
 
-      // Если ошибка связана с недействительным кодом авторизации, возвращаем специальный статус
+      // If error is related to invalid authorization code, return special status
       if (
         data.error?.error === "invalid_request" ||
         (data.error?.error_description &&
@@ -107,7 +107,7 @@ export default async function handler(req: any, res: any) {
       ) {
         return res.status(400).json({
           ...data,
-          message: "Код авторизации уже был использован или истек",
+          message: "Authorization code has already been used or expired",
           requestId,
         });
       }
@@ -118,10 +118,10 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // Проверка наличия необходимых полей в ответе
+    // Check for required fields in response
     if (!data.username || !data.user_id) {
       console.error(
-        `❌ Отсутствуют необходимые поля в ответе для запроса ${requestId}:`,
+        `❌ Missing required fields in response for request ${requestId}:`,
         data
       );
       return res.status(400).json({
@@ -131,14 +131,14 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    console.log(`✅ Успешно обработан запрос ${requestId}`);
+    console.log(`✅ Successfully processed request ${requestId}`);
     return res.status(response.status).json({
       ...data,
       requestId,
     });
   } catch (error: any) {
     console.error(
-      `❌ Proxy error для запроса ${requestId}:`,
+      `❌ Proxy error for request ${requestId}:`,
       error.message || error
     );
     return res.status(500).json({

@@ -132,7 +132,7 @@ export const useWeb3 = () => {
     }
 
     try {
-      // Проверяем, что кошелек подключен к правильной сети
+      // Check if wallet is connected to the correct network
       if (
         connectedChain &&
         parseInt(connectedChain.id, 16) !== CURRENT_CHAIN.id
@@ -142,13 +142,13 @@ export const useWeb3 = () => {
         );
       }
 
-      // Используем BrowserProvider вместо Web3Provider
+      // Use BrowserProvider instead of Web3Provider
       const provider = new ethers.BrowserProvider(
         connectedWallet.provider,
         "any"
       );
 
-      // Добавляем обработчик ошибок сети
+      // Add network error handler
       provider.on(
         "network",
         (
@@ -160,7 +160,7 @@ export const useWeb3 = () => {
               `Network changed from ${oldNetwork.chainId} to ${newNetwork.chainId}`
             );
 
-            // Если сеть изменилась на неправильную, выводим предупреждение
+            // If network changed to incorrect, show warning
             if (newNetwork.chainId !== CURRENT_CHAIN.id) {
               console.warn(
                 `Network changed to incorrect network: ${newNetwork.chainId}, expected: ${CURRENT_CHAIN.id}`
@@ -185,14 +185,14 @@ export const useWeb3 = () => {
     if (!web3Onboard) return;
 
     try {
-      // Подключаем кошелек
+      // Connect wallet
       const wallets = await web3Onboard.connectWallet();
       console.log("wallets", wallets.length, wallets);
 
       if (wallets.length > 0) {
         setConnectedWallet(wallets[0]);
 
-        // Проверяем текущую сеть
+        // Check current network
         const currentChain = wallets[0].chains?.[0];
         if (currentChain) {
           const currentChainId = parseInt(currentChain.id, 16);
@@ -200,52 +200,52 @@ export const useWeb3 = () => {
             `Текущая сеть: ${currentChain.label} (${currentChainId})`
           );
 
-          // Если сеть не соответствует требуемой, переключаем
+          // If network doesn't match required, switch
           if (currentChainId !== CURRENT_CHAIN.id) {
             console.log(
-              `Переключение на сеть ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
+              `Switching to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
             );
 
-            // Добавляем задержку перед переключением сети для стабильности
+            // Add delay before switching network for stability
             await new Promise((resolve) => setTimeout(resolve, 500));
 
-            // Переключаем на нужную сеть
+            // Switch to the correct network
             const success = await web3Onboard.setChain({
               chainId: CURRENT_CHAIN.hexId,
             });
 
             if (success) {
               console.log(
-                `✅ Успешно переключились на сеть ${CURRENT_CHAIN.label}`
+                `✅ Successfully switched to network ${CURRENT_CHAIN.label}`
               );
             } else {
               console.warn(
-                `⚠️ Не удалось переключиться на сеть ${CURRENT_CHAIN.label}`
+                `⚠️ Failed to switch to network ${CURRENT_CHAIN.label}`
               );
             }
           } else {
             console.log(
-              `✅ Уже подключены к правильной сети ${CURRENT_CHAIN.label}`
+              `✅ Already connected to correct network ${CURRENT_CHAIN.label}`
             );
           }
         }
 
-        // Устанавливаем слушатель изменений сети
+        // Set network change listener
         web3Onboard.state.select("chains").subscribe((chains: Chain[]) => {
           console.log("chains sub", chains.length, chains);
           if (chains && chains.length > 0) {
             const newChain = chains[0];
             setConnectedChain(newChain);
 
-            // Проверяем, соответствует ли новая сеть требуемой
+            // Check if new network matches required
             const newChainId = parseInt(newChain.id, 16);
             if (newChainId !== CURRENT_CHAIN.id) {
               console.warn(
-                `⚠️ Подключена неправильная сеть: ${newChain.label} (${newChainId}), требуется ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
+                `⚠️ Connected to incorrect network: ${newChain.label} (${newChainId}), required: ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
               );
             } else {
               console.log(
-                `✅ Подключена правильная сеть: ${newChain.label} (${newChainId})`
+                `✅ Connected to correct network: ${newChain.label} (${newChainId})`
               );
             }
           }

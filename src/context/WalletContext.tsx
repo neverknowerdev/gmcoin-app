@@ -42,7 +42,11 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchBalance = async (address: string) => {
     if (!address || address === "Not connected") return;
     try {
-      //@ts-ignore
+      if (typeof window === "undefined" || !window.ethereum) {
+        setBalance("No wallet");
+        return;
+      }
+      
       const provider = new ethers.BrowserProvider(window.ethereum);
       const balanceBigInt = await provider.getBalance(address);
       const formattedBalance = ethers.formatEther(balanceBigInt);
@@ -64,7 +68,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // При инициализации проверяем сохраненные данные
+  // When initializing, check saved data
   useEffect(() => {
     const storedAddress = localStorage.getItem("walletAddress");
     const isAuthenticated =

@@ -13,11 +13,8 @@ export async function POST(request: Request) {
       });
     }
     
-    // Создаем временное имя пользователя на основе ID
+    // Create temporary username based on ID
     const tempUsername = `@${userId.substring(0, 8)}`;
-    
-    // В реальном приложении здесь был бы запрос к Twitter API
-    // Но для решения проблемы с ошибкой 500 мы просто возвращаем временное имя
     
     return NextResponse.json({
       username: tempUsername,

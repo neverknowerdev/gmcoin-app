@@ -18,6 +18,7 @@ import SunLoader from "../../components/ui/loader/loader";
 import { useWallet } from "../../context/WalletContext";
 import ProgressNavigation from "../../components/features/ProgressNavigation/ProgressNavigation";
 import { getErrorMessage } from "../../hooks/errorHandler";
+import { STORAGE_KEYS } from "@/src/constants/storage";
 
 export default function Home() {
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -43,13 +44,13 @@ export default function Home() {
   // First, check if the user is already authenticated
   useEffect(() => {
     const checkStoredData = () => {
-      const twitterUserId = localStorage.getItem("twitterUserId");
+      const twitterUserId = localStorage.getItem(STORAGE_KEYS.TWITTER_USER_ID);
       const encryptedAccessToken = sessionStorage.getItem(
-        "encryptedAccessToken"
+        STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN
       );
-      const twitterName = localStorage.getItem("twitterName");
+      const twitterName = localStorage.getItem(STORAGE_KEYS.TWITTER_NAME);
       const hasCompletedTx = localStorage.getItem(
-        "hasCompletedTwitterVerification"
+        STORAGE_KEYS.HAS_COMPLETED_VERIFICATION
       );
 
       if (twitterUserId && encryptedAccessToken && twitterName) {
@@ -95,20 +96,29 @@ export default function Home() {
 
       const params = new URLSearchParams(window.location.search);
       const authorizationCode = params.get("code");
-      
-      // Проверяем сохраненные данные Twitter
-      const twitterName = localStorage.getItem("twitterName");
-      const twitterUserId = localStorage.getItem("twitterUserId");
-      const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-      
-      // Если имя пользователя отсутствует или равно "..", но есть ID и токен,
-      // попробуем получить имя пользователя заново
-      if ((!twitterName || twitterName === "..") && twitterUserId && encryptedAccessToken) {
+
+      // Check saved Twitter data
+      const twitterName = localStorage.getItem(STORAGE_KEYS.TWITTER_NAME);
+      const twitterUserId = localStorage.getItem(STORAGE_KEYS.TWITTER_USER_ID);
+      const encryptedAccessToken = sessionStorage.getItem(
+        STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN
+      );
+
+      // If the username is missing or equals "..", but ID and token exist,
+      // try to get the username again
+      if (
+        (!twitterName || twitterName === "..") &&
+        twitterUserId &&
+        encryptedAccessToken
+      ) {
         try {
-          // Здесь можно добавить запрос к API для получения имени пользователя
+          // Here you can add a request to the API to get the username
           console.log("Trying to fetch Twitter username again");
-          // Временное решение - установить какое-то значение по умолчанию
-          localStorage.setItem("twitterName", "@" + twitterUserId.substring(0, 8));
+          // Temporary solution - set some default value
+          localStorage.setItem(
+            STORAGE_KEYS.TWITTER_NAME,
+            "@" + twitterUserId.substring(0, 8)
+          );
         } catch (error) {
           console.error("Failed to fetch Twitter username:", error);
         }
@@ -117,7 +127,7 @@ export default function Home() {
       if (authorizationCode) {
         console.log("Found authorization code in URL");
         setIsTwitterConnected(true);
-        sessionStorage.setItem("code", authorizationCode);
+        sessionStorage.setItem(STORAGE_KEYS.CODE, authorizationCode);
         const newUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, document.title, newUrl);
         setCurrentStep(2);
@@ -125,7 +135,7 @@ export default function Home() {
           setCurrentStep(2);
         }
       } else {
-        const storedCode = sessionStorage.getItem("code");
+        const storedCode = sessionStorage.getItem(STORAGE_KEYS.CODE);
         if (storedCode) {
           setIsTwitterConnected(true);
         }
@@ -142,11 +152,13 @@ export default function Home() {
     if (typeof window === "undefined") return;
 
     // Check if user is a returning user
-    const twitterUserId = localStorage.getItem("twitterUserId");
-    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const twitterName = localStorage.getItem("twitterName");
+    const twitterUserId = localStorage.getItem(STORAGE_KEYS.TWITTER_USER_ID);
+    const encryptedAccessToken = sessionStorage.getItem(
+      STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN
+    );
+    const twitterName = localStorage.getItem(STORAGE_KEYS.TWITTER_NAME);
     const hasCompletedTx = localStorage.getItem(
-      "hasCompletedTwitterVerification"
+      STORAGE_KEYS.HAS_COMPLETED_VERIFICATION
     );
 
     if (
@@ -165,7 +177,7 @@ export default function Home() {
 
     setIsTwitterLoading(true);
     const codeVerifier = generateCodeVerifier();
-    sessionStorage.setItem("verifier", codeVerifier);
+    sessionStorage.setItem(STORAGE_KEYS.VERIFIER, codeVerifier);
 
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     console.log("Generated challenge:", codeChallenge);
@@ -185,142 +197,236 @@ export default function Home() {
       return;
     }
 
-    const encryptedAccessToken = sessionStorage.getItem("encryptedAccessToken");
-    const accessToken = sessionStorage.getItem("accessToken");
-    const twitterUserId = localStorage.getItem("twitterUserId");
-    const hasCompletedTx = localStorage.getItem("hasCompletedTwitterVerification");
+    const encryptedAccessToken = sessionStorage.getItem(STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
+    const accessToken = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    const twitterUserId = localStorage.getItem(STORAGE_KEYS.TWITTER_USER_ID);
+    const hasCompletedTx = localStorage.getItem(
+      STORAGE_KEYS.HAS_COMPLETED_VERIFICATION
+    );
 
-    if (!encryptedAccessToken || !twitterUserId) {
-      throw new Error("Missing required authentication data");
+    console.log("encryptedAccessToken", encryptedAccessToken);
+    console.log("twitterUserId", twitterUserId);
+
+    // Skip transaction if returning user with completed verification
+    if (
+      twitterUserId &&
+      encryptedAccessToken &&
+      localStorage.getItem(STORAGE_KEYS.TWITTER_NAME) &&
+      hasCompletedTx === "true"
+    ) {
+      console.log("✅ Returning user, skipping transaction");
+      setIsFirstTimeUser(false);
+      setTransactionStatus("success");
+      return;
     }
 
     try {
       setTransactionStatus("pending");
-      console.log("🚀 Initiating transaction process...");
+      console.log("🚀 Sending transaction...");
 
       const browserProvider = getProvider();
       const signer = await getSigner();
-      
+
       if (!browserProvider || !signer) {
         throw new Error("Failed to get provider or signer");
       }
 
-      // Сначала запрашиваем подпись у пользователя
-      console.log("🔏 Requesting signature approval...");
-      const message = "I confirm that I want to verify my Twitter account with GMCoin";
-      const messageHash = ethers.solidityPackedKeccak256(
-        ["string"],
-        [message]
-      );
-      
-      // Явно запрашиваем подпись у пользователя
-      let signature;
-      try {
-        signature = await signer.signMessage(ethers.getBytes(messageHash));
-        console.log("✅ Signature approved:", signature);
-      } catch (signError) {
-        console.log("❌ User rejected signature request");
-        setTransactionStatus("error");
-        setErrorMessage("Signature request was rejected");
+      const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      const address = await signer.getAddress();
+      const balance = await browserProvider.getBalance(address);
+      console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
+
+      // Check if we have the required data for the contract call
+      if (!encryptedAccessToken || !twitterUserId) {
+        console.log(
+          "❌ Missing required data for contract call, using API relay"
+        );
+        // Use API relay path
+        await handleApiRelay(accessToken, signer, address);
         return;
       }
 
-      const address = await signer.getAddress();
-      
-      // Используем API relay для всех случаев, чтобы избежать проблем с ENS
-      console.log("🔹 Using API relay...");
+      let estimatedGas;
+      let totalGasCost = BigInt(0);
+
+      // Try to estimate gas for the contract call
       try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            accessToken,
-            signature,
-            wallet: address,
-          }),
-        });
+        console.log("⛽ Estimating gas for requestTwitterVerification...");
+        estimatedGas = await contract.requestTwitterVerification.estimateGas(
+          encryptedAccessToken,
+          twitterUserId
+        );
+        console.log(`⛽ Estimated gas: ${estimatedGas.toString()}`);
 
-        if (!response.ok) {
-          throw new Error(`API Error: ${response.status} ${response.statusText}`);
-        }
-
-        const txReceipt = await response.json();
-        console.log("API response:", txReceipt);
-
-        // Set up background event listener
-        setupEventListener();
-
-        // Mark the user as having completed verification
-        localStorage.setItem("hasCompletedTwitterVerification", "true");
-
-        // Set success status
-        setTransactionStatus("success");
-        sessionStorage.removeItem("code");
-        sessionStorage.removeItem("verifier");
-      } catch (apiError: any) {
-        console.error("❌ API Error:", apiError);
-        setErrorMessage(getErrorMessage(apiError));
-        setTransactionStatus("error");
-        throw apiError;
+        const gasPrice = await browserProvider.getFeeData();
+        totalGasCost = BigInt(estimatedGas) * gasPrice.gasPrice!;
+        console.log(`💰 Gas cost: ${ethers.formatEther(totalGasCost)} ETH`);
+      } catch (gasError) {
+        console.log(
+          "⚠️ Failed to estimate gas, using API relay instead:",
+          gasError
+        );
+        // If gas estimation fails, use API relay
+        await handleApiRelay(accessToken, signer, address);
+        return;
       }
 
+      // Check if user has enough balance for transaction
+      if (balance > totalGasCost * 2n) {
+        console.log("🔹 Sending contract transaction...");
+        console.log("TwitterUserId:", twitterUserId);
+
+        try {
+          // Call requestTwitterVerification with the required parameters
+          const tx = await contract.requestTwitterVerification(
+            encryptedAccessToken,
+            twitterUserId
+          );
+          console.log("Transaction hash:", tx.hash);
+
+          // Wait for transaction confirmation
+          const txReceipt = await tx.wait();
+          console.log("Transaction confirmed:", txReceipt);
+
+          // Continue with the success flow
+          completeTransaction();
+        } catch (txError: any) {
+          // Handle specific transaction errors
+          if (
+            txError.message?.includes("insufficient funds") ||
+            txError.message?.includes("insufficient balance")
+          ) {
+            console.log("⚠️ Insufficient funds, falling back to API relay");
+            await handleApiRelay(accessToken, signer, address);
+            return;
+          }
+
+          // For other transaction errors, try API relay
+          console.error("❌ Transaction error:", txError);
+          console.log("⚠️ Falling back to API relay");
+          await handleApiRelay(accessToken, signer, address);
+          return;
+        }
+      } else {
+        console.log("⚠️ Insufficient balance, using API relay");
+        await handleApiRelay(accessToken, signer, address);
+        return;
+      }
     } catch (error: any) {
       console.error("❌ Transaction Error:", error);
-
-      // Check if we have the required data despite the error
-      const postErrorTwitterUserId = localStorage.getItem("twitterUserId");
-      const postErrorEncryptedToken = sessionStorage.getItem(
-        "encryptedAccessToken"
-      );
-      const postErrorTwitterName = localStorage.getItem("twitterName");
-
-      if (
-        postErrorTwitterUserId &&
-        postErrorEncryptedToken &&
-        postErrorTwitterName
-      ) {
-        console.log(
-          "Transaction error but required data is available, marking as success"
-        );
-        // Still mark as completed since data is available
-        localStorage.setItem("hasCompletedTwitterVerification", "true");
-        setTransactionStatus("success");
-      } else {
-        setErrorMessage(getErrorMessage(error));
-        setTransactionStatus("error");
-        throw error;
-      }
+      setErrorMessage(getErrorMessage(error));
+      setTransactionStatus("error");
+      throw error;
     }
+  };
+
+  // Helper function to handle API relay path
+  const handleApiRelay = async (
+    accessToken: string | null,
+    signer: ethers.Signer,
+    address: string
+  ) => {
+    console.log("🔹 Using API relay...");
+    try {
+      // Force signature even when using API relay
+      const signature = await signer.signMessage(
+        "I confirm that I want to verify my Twitter account with GMCoin"
+      );
+      console.log("Signature received:", signature);
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken,
+          signature,
+          wallet: address,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+
+      const txReceipt = await response.json();
+      console.log("API response:", txReceipt);
+
+      // Complete the transaction
+      completeTransaction();
+    } catch (apiError: any) {
+      console.error("❌ API Error:", apiError);
+
+      // Check if user rejected the signature request or closed the window
+      if (
+        apiError.code === 4001 ||
+        apiError.message?.includes("user rejected") ||
+        apiError.message?.includes("User denied") ||
+        apiError.message?.includes("User rejected") ||
+        apiError.message?.includes("cancelled") ||
+        apiError.message?.includes("window closed") ||
+        apiError.message?.includes("user closed")
+      ) {
+        // Return cancellation error to be handled in SendContract
+        throw new Error("Transaction cancelled by user");
+      }
+
+      // If the relay service returns 500, provide a user-friendly message
+      if (apiError.message?.includes("500")) {
+        throw new Error(
+          "Service temporarily unavailable. Please try again later."
+        );
+      }
+
+      throw new Error(`Relayer service error: ${apiError.message}`);
+    }
+  };
+
+  // Helper function to complete the transaction
+  const completeTransaction = () => {
+    // Set up background event listener to log events
+    setupEventListener();
+
+    // Mark the user as having completed verification
+    localStorage.setItem(STORAGE_KEYS.HAS_COMPLETED_VERIFICATION, "true");
+
+    // Set success status after transaction completion
+    setTransactionStatus("success");
+    sessionStorage.removeItem(STORAGE_KEYS.CODE);
+    sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
   };
 
   // Optional background event listener that doesn't block UI flow
   const setupEventListener = () => {
     try {
-      // Сохраняем адрес кошелька для проверки событий
+      // Save wallet address for event checking
       if (connectedWallet?.accounts[0]?.address) {
-        localStorage.setItem("walletAddress", connectedWallet.accounts[0].address);
+        localStorage.setItem(
+          STORAGE_KEYS.WALLET_ADDRESS,
+          connectedWallet.accounts[0].address
+        );
       }
-      
-      // Настраиваем периодический опрос событий через наш API
+
+      // Set up periodic polling of events through our API
       const pollInterval = setInterval(async () => {
         try {
-          const walletAddress = localStorage.getItem("walletAddress");
+          const walletAddress = localStorage.getItem(STORAGE_KEYS.WALLET_ADDRESS);
           if (!walletAddress) return;
-          
-          const response = await fetch('/api/events', {
-            method: 'POST',
+
+          const response = await fetch("/api/events", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({ walletAddress }),
           });
-          
+
           if (!response.ok) {
             throw new Error(`API Error: ${response.status}`);
           }
-          
+
           const data = await response.json();
-          
+
           if (data.found) {
             console.log("TwitterVerificationResult event received:", {
               userID: data.userID,
@@ -328,27 +434,31 @@ export default function Home() {
               isSuccess: data.isSuccess,
               errorMsg: data.errorMsg,
             });
-            
+
             if (data.isSuccess) {
-              console.log("✅ Twitter verification successful according to event");
+              console.log(
+                "✅ Twitter verification successful according to event"
+              );
             } else {
-              console.log("❌ Twitter verification failed according to event:", data.errorMsg);
+              console.log(
+                "❌ Twitter verification failed according to event:",
+                data.errorMsg
+              );
             }
-            
-            // Очищаем интервал после обработки нужного события
+
+            // Clear interval after processing the needed event
             clearInterval(pollInterval);
           }
         } catch (error) {
           console.error("Error polling for events:", error);
         }
-      }, 10000); // Проверяем каждые 10 секунд
-      
-      // Устанавливаем таймаут для очистки через 5 минут
+      }, 10000);
+
+      // Set timeout for cleanup after 5 minutes
       const timeout = setTimeout(() => {
         console.log("Cleaning up event polling after timeout");
         clearInterval(pollInterval);
-      }, 300000); // 5 минут
-      
+      }, 300000);
     } catch (error) {
       console.error("Failed to set up event listener:", error);
     }
@@ -362,22 +472,24 @@ export default function Home() {
     if (currentStep === 2) {
       setCurrentStep(1);
       setTransactionStatus("idle");
-      sessionStorage.removeItem("code");
-      sessionStorage.removeItem("verifier");
+      sessionStorage.removeItem(STORAGE_KEYS.CODE);
+      sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
       setIsTwitterConnected(false);
     } else if (currentStep === 1) {
       setCurrentStep(0);
       await disconnect();
     } else if (currentStep === 0) {
       setIsTwitterConnected(false);
-      sessionStorage.removeItem("code");
-      sessionStorage.removeItem("verifier");
+      sessionStorage.removeItem(STORAGE_KEYS.CODE);
+      sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
     }
   };
 
-  // Если нам нужно создать провайдер на клиенте, используем публичный RPC-узел
+  // If we need to create a provider on the client, use a public RPC node
   const getPublicProvider = () => {
-    return new ethers.JsonRpcProvider("https://base-sepolia.public.blastapi.io");
+    return new ethers.JsonRpcProvider(
+      "https://base-sepolia.public.blastapi.io"
+    );
   };
 
   if (isCheckingStorage || isTwitterLoading) {

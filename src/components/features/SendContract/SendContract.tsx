@@ -6,6 +6,7 @@ import Modal from "../../modals/Modal";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useWeb3 } from "@/src/hooks/useWeb3";
 import { useWalletActions } from "@/src/hooks/useWalletActions";
+import { useTwitterActions } from "@/src/hooks/useTwitterActions";
 import { getErrorMessage } from "@/src/hooks/errorHandler";
 import { useConnectWallet } from "@web3-onboard/react";
 import { CURRENT_CHAIN } from "@/src/config";
@@ -46,7 +47,7 @@ const SendContract: React.FC<SendContractProps> = ({
   const [twitterError, setTwitterError] = useState<string | null>(null);
   const router = useRouter();
 
-  // Добавляем флаг для отслеживания выполненных запросов авторизации
+  // Add flag to track completed authorization requests
   const [authAttempted, setAuthAttempted] = useState(false);
 
   // Check if user is a returning verified user
@@ -76,7 +77,6 @@ const SendContract: React.FC<SendContractProps> = ({
   const {
     switchNetwork,
     reconnectWallet,
-    reconnectTwitter,
     fetchTwitterAccessToken,
     checkNetwork,
     setupNetworkMonitoring,
@@ -90,27 +90,33 @@ const SendContract: React.FC<SendContractProps> = ({
     setUser,
   });
 
-  const handleReconnectWalletClick = () => reconnectWallet(setWalletAdd);
-  const handleReconnectTwitterClick = () => reconnectTwitter();
+  const { handleReconnectTwitter } = useTwitterActions({
+    setModalState,
+    setErrorMessage,
+    setUser,
+  });
 
-  // Мониторинг изменений сети
+  const handleReconnectWalletClick = () => reconnectWallet(setWalletAdd);
+  const handleReconnectTwitterClick = () => handleReconnectTwitter();
+
+  // Network change monitoring
   useEffect(() => {
-    // Устанавливаем слушатель изменений сети
+    // Set up network change listener
     const cleanup = setupNetworkMonitoring();
 
-    // Проверяем сеть при монтировании компонента
+    // Check network when component mounts
     checkNetwork();
 
     return cleanup;
   }, [setupNetworkMonitoring, checkNetwork]);
 
-  // Проверка сети перед отправкой транзакции
+  // Check network before sending transaction
   const ensureCorrectNetwork = async () => {
-    // Проверяем текущую сеть
+    // Check current network
     const isCorrectNetwork = await checkNetwork();
 
     if (!isCorrectNetwork) {
-      console.log("Неправильная сеть, пытаемся переключить...");
+      console.log("Wrong network, attempting to switch...");
       setModalState("wrongNetwork");
       return false;
     }
@@ -121,7 +127,7 @@ const SendContract: React.FC<SendContractProps> = ({
   useEffect(() => {
     if (walletAddress) {
       setWallet(walletAddress);
-      // Сохраняем адрес в localStorage при его изменении
+      // Save address to localStorage when it changes
       localStorage.setItem("walletAddress", walletAddress);
       localStorage.setItem("userAuthenticated", "true");
     }
@@ -179,7 +185,7 @@ const SendContract: React.FC<SendContractProps> = ({
     return twitterName;
   };
 
-  // Проверяем, есть ли код авторизации в URL
+  // Check if there's an authorization code in URL
   useEffect(() => {
     const checkUrlForAuthCode = () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -187,17 +193,17 @@ const SendContract: React.FC<SendContractProps> = ({
       const state = urlParams.get("state");
 
       if (authCode && state) {
-        console.log("Обнаружен код авторизации в URL, сохраняем...");
+        console.log("Authorization code found in URL, saving...");
 
-        // Сохраняем код в sessionStorage и добавляем в список обработанных кодов
+        // Save code to sessionStorage and add to processed codes list
         sessionStorage.setItem("code", authCode);
 
-        // Инициализируем массив обработанных кодов, если его нет
+        // Initialize processed codes array if it doesn't exist
         const processedCodes = JSON.parse(
           sessionStorage.getItem("processed_auth_codes") || "[]"
         );
 
-        // Добавляем текущий код в список обработанных, если его там еще нет
+        // Add current code to processed list if it's not already there
         if (!processedCodes.includes(authCode)) {
           processedCodes.push(authCode);
           sessionStorage.setItem(
@@ -206,38 +212,38 @@ const SendContract: React.FC<SendContractProps> = ({
           );
         }
 
-        // Проверяем соответствие state
+        // Check state match
         const savedState = sessionStorage.getItem("oauth_state");
         if (savedState && savedState === state) {
-          console.log("State соответствует, продолжаем авторизацию");
+          console.log("State matches, continuing authorization");
         } else {
-          console.warn("State не соответствует, возможна CSRF-атака");
-          // В случае несоответствия state, очищаем данные авторизации
+          console.warn("State mismatch, possible CSRF attack");
+          // Clear authorization data if state doesn't match
           sessionStorage.removeItem("code");
           sessionStorage.removeItem("verifier");
           return;
         }
 
-        // Очищаем URL от параметров авторизации
+        // Clear authorization parameters from URL
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
 
-        // Перезагружаем код и верификатор
+        // Reload code and verifier
         setCode(authCode);
         const storedVerifier = sessionStorage.getItem("verifier");
         if (storedVerifier) {
           setVerifier(storedVerifier);
         } else {
-          console.warn("Верификатор не найден в sessionStorage");
+          console.warn("Verifier not found in sessionStorage");
         }
       }
     };
 
-    // Выполняем проверку URL только один раз при монтировании компонента
+    // Only check URL once when component mounts
     checkUrlForAuthCode();
   }, []);
 
-  // Обработка получения токена Twitter
+  // Handle Twitter token retrieval
   useEffect(() => {
     // Skip token fetch if we already have a Twitter username or missing credentials
     const twitterNameExists = !!twitterName;
@@ -245,12 +251,12 @@ const SendContract: React.FC<SendContractProps> = ({
     const authProcessed = sessionStorage.getItem("auth_processed") === "true";
     const authProcessing = sessionStorage.getItem("auth_processing") === "true";
 
-    // Пропускаем запрос, если:
-    // 1. У нас уже есть имя пользователя Twitter или токен доступа
-    // 2. Отсутствует код или верификатор
-    // 3. Авторизация уже была обработана в этой сессии
-    // 4. Авторизация в процессе обработки
-    // 5. Уже была попытка авторизации в этом компоненте
+    // Skip request if:
+    // 1. We already have Twitter username or access token
+    // 2. Missing code or verifier
+    // 3. Authorization was already processed in this session
+    // 4. Authorization is in progress
+    // 5. Authorization attempt was already made in this component
     if (
       twitterNameExists ||
       accessTokenExists ||
@@ -267,9 +273,9 @@ const SendContract: React.FC<SendContractProps> = ({
         !authProcessing &&
         !authAttempted
       ) {
-        console.log("Условия для запроса токена выполнены, продолжаем...");
+        console.log("Conditions for token request met, proceeding...");
       } else {
-        console.log("Пропускаем запрос токена Twitter:", {
+        console.log("Skipping Twitter token request:", {
           twitterNameExists,
           accessTokenExists,
           hasCode: !!code,
@@ -292,15 +298,15 @@ const SendContract: React.FC<SendContractProps> = ({
       verifier.substring(0, 5) + "..." + verifier.substring(verifier.length - 5)
     );
 
-    // Устанавливаем флаг, что попытка авторизации была сделана
+    // Set flag that authorization attempt was made
     setAuthAttempted(true);
-    // Отмечаем, что авторизация обрабатывается
+    // Mark that authorization is being processed
     sessionStorage.setItem("auth_processing", "true");
 
     setIsTwitterLoading(true);
     setTwitterError(null);
 
-    // Добавляем небольшую задержку перед запросом токена
+    // Add small delay before token request
     setTimeout(() => {
       fetchTwitterAccessToken(code, verifier)
         .then((username) => {
@@ -313,19 +319,19 @@ const SendContract: React.FC<SendContractProps> = ({
           sessionStorage.removeItem("redirect_uri");
           sessionStorage.removeItem("oauth_state");
 
-          // Отмечаем, что авторизация была успешно обработана
+          // Mark authorization as successfully processed
           sessionStorage.setItem("auth_processed", "true");
           sessionStorage.removeItem("auth_processing");
 
-          // Обновляем имя пользователя в компоненте
+          // Update username in component
           setTwitterName(username);
 
           // Don't automatically show success for first-time users
           // They need to complete the transaction first
         })
         .catch((error) => {
-          // Форматируем сообщение об ошибке для пользователя
-          let userErrorMessage = "Ошибка при получении токена Twitter";
+          // Format error message for user
+          let userErrorMessage = "Error getting Twitter token";
 
           if (error.message) {
             if (
@@ -333,13 +339,13 @@ const SendContract: React.FC<SendContractProps> = ({
               error.message.includes("authorization code")
             ) {
               userErrorMessage =
-                "Код авторизации Twitter недействителен или истек. Пожалуйста, попробуйте снова.";
+                "Twitter authorization code is invalid or expired. Please try again.";
             } else if (error.message.includes("500")) {
               userErrorMessage =
-                "Ошибка сервера при авторизации Twitter. Пожалуйста, попробуйте позже.";
+                "Server error during Twitter authorization. Please try again later.";
             } else if (error.message.includes("401")) {
               userErrorMessage =
-                "Ошибка авторизации Twitter. Пожалуйста, попробуйте снова.";
+                "Twitter authorization error. Please try again.";
             }
           }
 
@@ -368,13 +374,13 @@ const SendContract: React.FC<SendContractProps> = ({
         .finally(() => {
           setIsTwitterLoading(false);
         });
-    }, 500); // Задержка в 500 мс для стабильности
+    }, 500); // 500ms delay for stability
   }, [code, verifier, fetchTwitterAccessToken, twitterName, authAttempted]);
 
-  // Очистка флага обработки при размонтировании компонента
+  // Clean up processing flag when component unmounts
   useEffect(() => {
     return () => {
-      // Если процесс авторизации не был завершен, очищаем флаг
+      // If authorization process wasn't completed, clear the flag
       if (
         sessionStorage.getItem("auth_processing") === "true" &&
         sessionStorage.getItem("auth_processed") !== "true"
@@ -384,11 +390,11 @@ const SendContract: React.FC<SendContractProps> = ({
     };
   }, []);
 
-  // Сохраняем адрес кошелька при его изменении
+  // Save wallet address when it changes
   useEffect(() => {
     if (connectedWallet?.accounts[0]?.address) {
       const currentAddress = connectedWallet.accounts[0].address;
-      console.log("Сохраняем адрес кошелька в localStorage:", currentAddress);
+      console.log("Saving wallet address to localStorage:", currentAddress);
       localStorage.setItem("walletAddress", currentAddress);
       localStorage.setItem("userAuthenticated", "true");
     }
@@ -398,32 +404,67 @@ const SendContract: React.FC<SendContractProps> = ({
     try {
       setModalState("loading");
 
-      // Проверяем сеть перед отправкой транзакции
+      // Check network before sending transaction
       const networkCorrect = await ensureCorrectNetwork();
       if (!networkCorrect) return;
 
-      await sendTransaction();
+      // Add a timeout to detect if the transaction is taking too long
+      // This helps catch cases when a user closes the wallet window without rejecting
+      let transactionComplete = false;
 
-      // Сохраняем статус верификации только после успешной транзакции
-      localStorage.setItem("hasCompletedTwitterVerification", "true");
-      setModalState("success");
+      // Create promise race between transaction and timeout
+      await Promise.race([
+        // Regular transaction
+        (async () => {
+          try {
+            await sendTransaction();
+            transactionComplete = true;
+
+            // Save verification status only after successful transaction
+            localStorage.setItem("hasCompletedTwitterVerification", "true");
+            setModalState("success");
+          } catch (txError) {
+            // Pass any errors up to the outer catch block
+            throw txError;
+          }
+        })(),
+
+        // Timeout to detect closed window (2 minutes should be enough for user to decide)
+        new Promise((_, reject) => {
+          setTimeout(() => {
+            if (!transactionComplete) {
+              reject(
+                new Error(
+                  "Transaction timed out - signature window may have been closed"
+                )
+              );
+            }
+          }, 120000);
+        }),
+      ]);
     } catch (error: any) {
       console.error("Transaction error:", error);
 
-      // Проверяем, была ли транзакция отклонена пользователем
+      // Check for all possible user rejection scenarios, incl  uding timeout
       if (
-        error.code === 4001 || // MetaMask user rejected
+        error.code === 4001 ||
         error.message?.includes("user rejected") ||
         error.message?.includes("User denied") ||
         error.message?.includes("User rejected") ||
-        error.message?.includes("cancelled")
+        error.message?.includes("cancelled") ||
+        error.message?.includes("user closed") ||
+        error.message?.includes("window closed") ||
+        error.message?.includes("Transaction cancelled by user") ||
+        error.message?.includes("timed out") ||
+        error.message?.includes("timeout")
       ) {
-        // Просто закрываем модальное окно
-        setModalState(null);
+        // Either show error modal or just close the modal
+        setErrorMessage("Transaction cancelled");
+        setModalState("error");
         return;
       }
 
-      // Для других ошибок показываем сообщение об ошибке
+      // For other errors show error message
       const errorMessage = getErrorMessage(error);
       setErrorMessage(errorMessage);
       setModalState("error");
@@ -519,19 +560,48 @@ const SendContract: React.FC<SendContractProps> = ({
       </div>
 
       {modalState && (
+        // <Modal onClose={() => setModalState(null)}>
+        //   {modalState === "loading" && (
+        //     <div className={styles.modalContent}>
+        //       <p>Transaction in progress...</p>
+        //       <div className={styles.loadingContainer}>
+        //         <div className={styles.loadingText}>
+        //           <span>S</span>
+        //           <span>E</span>
+        //           <span>N</span>
+        //           <span>D</span>
+        //           <span>I</span>
+        //           <span>N</span>
+        //           <span>G</span>
+        //         </div>
+        //       </div>
+        //     </div>
+        //   )}
         <Modal onClose={() => setModalState(null)}>
           {modalState === "loading" && (
             <div className={styles.modalContent}>
-              <p>Transaction in progress...</p>
               <div className={styles.loadingContainer}>
                 <div className={styles.loadingText}>
-                  <span>S</span>
-                  <span>E</span>
-                  <span>N</span>
-                  <span>D</span>
+                  <span>W</span>
+                  <span>A</span>
+                  <span>T</span>
                   <span>I</span>
                   <span>N</span>
                   <span>G</span>
+                </div>
+                <div className={styles.loadingText}>
+                  <span>F</span>
+                  <span>O</span>
+                  <span>R</span>
+                </div>
+                <div className={styles.loadingText}>
+                  <span>C</span>
+                  <span>O</span>
+                  <span>N</span>
+                  <span>F</span>
+                  <span>I</span>
+                  <span>R</span>
+                  <span>M</span>
                 </div>
               </div>
             </div>
@@ -633,7 +703,7 @@ const SendContract: React.FC<SendContractProps> = ({
               <button
                 className={styles.successButton}
                 onClick={() => {
-                  // Убедимся, что все данные сохранены перед переходом
+                  // Make sure all data is saved before navigation
                   if (connectedWallet?.accounts[0]?.address) {
                     localStorage.setItem(
                       "walletAddress",
@@ -641,16 +711,16 @@ const SendContract: React.FC<SendContractProps> = ({
                     );
                   }
 
-                  // Устанавливаем флаг аутентификации
+                  // Set authentication flag
                   localStorage.setItem("userAuthenticated", "true");
 
-                  // Сохраняем информацию о том, что пользователь завершил верификацию
+                  // Save information that user has completed verification
                   localStorage.setItem(
                     "hasCompletedTwitterVerification",
                     "true"
                   );
 
-                  // Переходим на дашборд
+                  // Redirect to dashboard
                   router.push("/");
                 }}
               >

@@ -29,33 +29,33 @@ export const useWalletActions = ({
     console.log("handleSwitchNetwork");
 
     try {
-      // Используем web3Onboard для переключения сети
+      // Use web3Onboard to switch network
       const success = await web3Onboard?.setChain({
         chainId: CURRENT_CHAIN.hexId,
       });
 
       if (success) {
         console.log(
-          `✅ Успешно переключились на сеть ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
+          `✅ Successfully switched to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
         );
         setIsWrongNetwork?.(false);
         setModalState(null);
         return true;
       } else {
         console.error(
-          `❌ Не удалось переключиться на сеть ${CURRENT_CHAIN.label}`
+          `❌ Failed to switch to network ${CURRENT_CHAIN.label}`
         );
         setErrorMessage(
-          `Не удалось переключиться на сеть ${CURRENT_CHAIN.label}. Пожалуйста, переключите сеть вручную в вашем кошельке.`
+          `Failed to switch to network ${CURRENT_CHAIN.label}. Please switch the network manually in your wallet.`
         );
         setModalState("error");
         return false;
       }
     } catch (switchError: any) {
-      console.error("❌ Ошибка при переключении сети:", switchError);
+      console.error("❌ Error while switching network:", switchError);
       setErrorMessage(
-        `Ошибка при переключении сети: ${
-          switchError.message || "Неизвестная ошибка"
+        `Error while switching network: ${
+          switchError.message || "Unknown error"
         }`
       );
       setModalState("error");
@@ -63,10 +63,10 @@ export const useWalletActions = ({
     }
   }, [web3Onboard, setIsWrongNetwork, setModalState, setErrorMessage]);
 
-  // Функция для проверки правильности сети
+  // Function to check network correctness
   const checkNetwork = useCallback(async () => {
     if (!connectedChain) {
-      console.log("❌ Нет подключенной сети");
+      console.log("❌ No connected network");
       return false;
     }
 
@@ -74,25 +74,25 @@ export const useWalletActions = ({
     const targetChainId = CURRENT_CHAIN.id;
 
     console.log(
-      `🔍 Проверка сети: текущая ${currentChainId}, целевая ${targetChainId}`
+      `🔍 Network check: current ${currentChainId}, target ${targetChainId}`
     );
 
     if (currentChainId !== targetChainId) {
       console.log(
-        `❌ Неправильная сеть: ${currentChainId}, требуется ${targetChainId}`
+        `❌ Wrong network: ${currentChainId}, required ${targetChainId}`
       );
       setIsWrongNetwork?.(true);
       return false;
     }
 
     console.log(
-      `✅ Правильная сеть: ${CURRENT_CHAIN.label} (${targetChainId})`
+      `✅ Correct network: ${CURRENT_CHAIN.label} (${targetChainId})`
     );
     setIsWrongNetwork?.(false);
     return true;
   }, [connectedChain, setIsWrongNetwork]);
 
-  // Функция для мониторинга изменений сети
+  // Function to monitor network changes
   const setupNetworkMonitoring = useCallback(() => {
     if (typeof window === "undefined" || !window.ethereum) return () => {};
 
@@ -100,27 +100,27 @@ export const useWalletActions = ({
       if (typeof chainId !== "string") return;
 
       const newChainId = parseInt(chainId, 16);
-      console.log(`🔄 Сеть изменена на: ${newChainId}`);
+      console.log(`🔄 Network changed to: ${newChainId}`);
 
       if (newChainId !== CURRENT_CHAIN.id) {
         console.log(
-          `⚠️ Обнаружена неправильная сеть: ${newChainId}, требуется ${CURRENT_CHAIN.id}`
+          `⚠️ Detected wrong network: ${newChainId}, required ${CURRENT_CHAIN.id}`
         );
         setIsWrongNetwork?.(true);
       } else {
         console.log(
-          `✅ Сеть соответствует требуемой: ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
+          `✅ Network matches required: ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
         );
         setIsWrongNetwork?.(false);
       }
     };
 
-    // @ts-ignore - игнорируем ошибку типизации для ethereum
+    
     window.ethereum.on("chainChanged", handleChainChanged);
 
     return () => {
       if (window.ethereum) {
-        // @ts-ignore - игнорируем ошибку типизации для ethereum
+        
         window.ethereum.removeListener("chainChanged", handleChainChanged);
       }
     };
@@ -143,77 +143,7 @@ export const useWalletActions = ({
     [disconnect, connect, setModalState, setErrorMessage]
   );
 
-  const handleReconnectTwitter = useCallback(async () => {
-    try {
-      console.log("Начинаем процесс авторизации Twitter...");
-
-      // Очищаем все предыдущие данные авторизации
-      sessionStorage.removeItem("code");
-      sessionStorage.removeItem("verifier");
-      sessionStorage.removeItem("auth_processed");
-      sessionStorage.removeItem("auth_processing");
-      sessionStorage.removeItem("redirect_uri");
-      sessionStorage.removeItem("oauth_state");
-
-      // Генерируем новый code_verifier с использованием crypto API
-      let codeVerifier = "";
-      const array = new Uint8Array(64);
-      window.crypto.getRandomValues(array);
-      codeVerifier = Array.from(array, (byte) =>
-        ("0" + (byte & 0xff).toString(16)).slice(-2)
-      ).join("");
-
-      // Убеждаемся, что длина verifier соответствует требованиям (43-128 символов)
-      if (codeVerifier.length > 128) {
-        codeVerifier = codeVerifier.substring(0, 128);
-      } else if (codeVerifier.length < 43) {
-        // Дополняем до минимальной длины
-        while (codeVerifier.length < 43) {
-          codeVerifier += Math.random().toString(36).substring(2);
-        }
-        codeVerifier = codeVerifier.substring(0, 128);
-      }
-
-      console.log("Сгенерирован code_verifier длиной:", codeVerifier.length);
-
-      // Сохраняем verifier в sessionStorage
-      sessionStorage.setItem("verifier", codeVerifier);
-
-      // Генерируем code_challenge
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-      console.log("Сгенерирован code_challenge");
-
-      // Генерируем state для защиты от CSRF
-      const state =
-        Math.random().toString(36).substring(2, 15) +
-        Math.random().toString(36).substring(2, 15);
-      sessionStorage.setItem("oauth_state", state);
-
-      // Создаем redirect_uri на основе текущего URL
-      const redirectUri = window.location.origin + window.location.pathname;
-      sessionStorage.setItem("redirect_uri", redirectUri);
-
-      // Кодируем redirect_uri для URL
-      const encodedRedirectUri = encodeURIComponent(redirectUri);
-
-      // Формируем URL авторизации Twitter
-      const twitterAuthUrl = `https://x.com/i/oauth2/authorize?response_type=code&client_id=${TWITTER_CLIENT_ID}&redirect_uri=${encodedRedirectUri}&scope=users.read%20tweet.read&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
-
-      console.log(
-        "Перенаправление на URL авторизации Twitter:",
-        twitterAuthUrl
-      );
-
-      // Перенаправляем пользователя на страницу авторизации Twitter
-      window.location.href = twitterAuthUrl;
-    } catch (error) {
-      console.error("Ошибка при переподключении Twitter:", error);
-      setErrorMessage("Failed to reconnect Twitter");
-      setModalState("error");
-    }
-  }, [setErrorMessage, setModalState, setUser]);
-
-  // Функция для повторных попыток запроса с задержкой
+  // Function for retry requests with delay
   const retryWithDelay = async (
     fn: () => Promise<any>,
     retries = 3,
@@ -226,7 +156,7 @@ export const useWalletActions = ({
         throw error;
       }
       console.log(
-        `Повторная попытка через ${delay}мс, осталось попыток: ${retries}`
+        `Retrying in ${delay}ms, attempts remaining: ${retries}`
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
       return retryWithDelay(fn, retries - 1, delay * 1.5);
@@ -237,40 +167,40 @@ export const useWalletActions = ({
     async (code: string, verifier: string) => {
       const url = TOKEN_URL;
       if (!url) {
-        console.error("❌ TOKEN_URL не определен в .env!");
-        throw new Error("Ошибка конфигурации сервера: TOKEN_URL не определен");
+        console.error("❌ TOKEN_URL is not defined in .env!");
+        throw new Error("Server configuration error: TOKEN_URL is not defined");
       }
 
-      // Проверяем, был ли этот код уже обработан
+      // Check if this code was already processed
       const processedCodes = JSON.parse(
         sessionStorage.getItem("processed_auth_codes") || "[]"
       );
       if (processedCodes.includes(code)) {
-        // Возвращаем имя пользователя из localStorage, если оно есть
+        // Return username from localStorage if it exists
         const cachedUsername = localStorage.getItem("twitterName");
         if (cachedUsername) {
           return cachedUsername;
         }
       }
 
-      // Получаем сохраненный redirect_uri - ВАЖНО использовать точно такой же URI, который был использован при запросе кода
+      // Get saved redirect_uri - IMPORTANT use exactly the same URI that was used when requesting the code
       const redirectUri =
         sessionStorage.getItem("redirect_uri") ||
         window.location.origin + window.location.pathname;
 
-      // Убедимся, что redirect_uri не содержит лишних параметров
+      // Ensure redirect_uri doesn't contain extra parameters
       const cleanRedirectUri = redirectUri.split("?")[0];
       console.log(
-        "Используем redirect_uri для запроса токена:",
+        "Using redirect_uri for token request:",
         cleanRedirectUri
       );
 
-      // Генерируем уникальный идентификатор запроса для отслеживания
+      // Generate unique request ID for tracking
       const requestId = `${code.substring(0, 5)}_${Date.now()}`;
-      console.log(`📝 Запрос токена Twitter [${requestId}]`);
+      console.log(`📝 Token request Twitter [${requestId}]`);
 
       console.log(
-        "Отправка запроса на получение токена Twitter с параметрами:"
+        "Sending token request to Twitter with parameters:"
       );
       console.log("- URL:", url);
       console.log(
@@ -287,7 +217,7 @@ export const useWalletActions = ({
       console.log("- Request ID:", requestId);
 
       try {
-        // Добавляем код в список обработанных сразу, чтобы избежать повторных запросов
+        // Add code to the list of processed codes immediately to avoid duplicate requests
         if (!processedCodes.includes(code)) {
           processedCodes.push(code);
           sessionStorage.setItem(
@@ -296,7 +226,7 @@ export const useWalletActions = ({
           );
         }
 
-        // Добавляем небольшую случайную задержку для предотвращения гонки условий
+        // Add a small random delay to prevent race conditions
         const randomDelay = Math.floor(Math.random() * 100);
         await new Promise((resolve) => setTimeout(resolve, randomDelay));
 
@@ -306,7 +236,7 @@ export const useWalletActions = ({
           redirectUri: cleanRedirectUri,
         };
 
-        // Используем функцию повторных попыток с меньшим количеством повторов
+        // Use retry function with fewer retries
         const data = await retryWithDelay(async () => {
           const response = await fetch(url, {
             method: "POST",
@@ -319,17 +249,17 @@ export const useWalletActions = ({
             body: JSON.stringify(requestBody),
           });
 
-          console.log(`📥 Ответ от сервера [${requestId}]:`, response.status);
+          console.log(`📥 Response from server [${requestId}]:`, response.status);
 
           if (!response.ok) {
             let errorText;
             try {
               errorText = await response.text();
             } catch (e) {
-              errorText = "Не удалось получить текст ошибки";
+              errorText = "Failed to get error text";
             }
 
-            // Если ошибка связана с недействительным кодом, не пытаемся повторить запрос
+            // If error is related to invalid code, don't retry
             if (
               errorText.includes("invalid_request") ||
               errorText.includes("authorization code") ||
@@ -338,7 +268,7 @@ export const useWalletActions = ({
               )
             ) {
               throw new Error(
-                `Код авторизации недействителен: ${response.status}, ${errorText}`
+                `Authorization code is invalid: ${response.status}, ${errorText}`
               );
             }
 
@@ -351,14 +281,14 @@ export const useWalletActions = ({
           try {
             responseData = await response.json();
           } catch (e) {
-            console.error(`❌ Ошибка при парсинге JSON [${requestId}]:`, e);
-            throw new Error("Ошибка при парсинге ответа сервера");
+            console.error(`❌ Error parsing JSON [${requestId}]:`, e);
+            throw new Error("Error parsing server response");
           }
 
           return responseData;
-        }, 1); // Только одна повторная попытка
+        }, 1);
 
-        console.log(`✅ Получены данные от сервера [${requestId}]:`, {
+        console.log(`✅ Data received from server [${requestId}]:`, {
           username: data.username,
           user_id: data.user_id,
           hasAccessToken: !!data.access_token,
@@ -367,20 +297,20 @@ export const useWalletActions = ({
 
         if (!data || !data.username) {
           console.error(
-            `❌ Получен неверный ответ от сервера [${requestId}]:`,
+            `❌ Invalid response from server [${requestId}]:`,
             data
           );
           throw new Error("Invalid response from server");
         }
 
-        // Сохраняем данные пользователя
+        // Save user data
         setTwitterName?.(data.username);
         localStorage.setItem("twitterName", data.username);
         localStorage.setItem("twitterUserId", data.user_id);
         localStorage.setItem("isTwitterConnected", "true");
         localStorage.setItem("userAuthenticated", "true");
 
-        // Сохраняем токены
+        // Save tokens
         if (data.encrypted_access_token) {
           localStorage.setItem(
             "encryptedAccessToken",
@@ -397,18 +327,15 @@ export const useWalletActions = ({
           sessionStorage.setItem("accessToken", data.access_token);
         }
 
-        // Отмечаем, что авторизация успешно завершена
+        // Mark that authorization is successfully completed
         sessionStorage.setItem("auth_processed", "true");
         sessionStorage.removeItem("auth_processing");
 
         return data.username;
       } catch (error: any) {
-        // console.error(
-        //   `❌ Ошибка при получении токена Twitter [${requestId}]:`,
-        //   error
-        // );
 
-        // Если ошибка связана с истекшим кодом, предлагаем пользователю повторную авторизацию
+
+        // If error is related to expired code, suggest user to re-authorize
         if (
           error.message &&
           (error.message.includes("500") ||
@@ -416,7 +343,7 @@ export const useWalletActions = ({
             error.message.includes("invalid_request") ||
             error.message.includes("authorization code"))
         ) {
-          // Очищаем данные авторизации
+          // Clear authorization data
           sessionStorage.removeItem("code");
           sessionStorage.removeItem("verifier");
           sessionStorage.removeItem("auth_processed");
@@ -432,7 +359,6 @@ export const useWalletActions = ({
   return {
     switchNetwork: handleSwitchNetwork,
     reconnectWallet: handleReconnectWallet,
-    reconnectTwitter: handleReconnectTwitter,
     fetchTwitterAccessToken: handleFetchTwitterAccessToken,
     checkNetwork,
     setupNetworkMonitoring,

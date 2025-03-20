@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { ethers } from "ethers";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "@/src/config";
 
-// Секретный ключ Infura хранится только на сервере
+// Infura secret key is stored only on the server
 const INFURA_API_KEY = process.env.INFURA_API_KEY;
 if (!CONTRACT_ADDRESS || !CONTRACT_ABI) {
   console.error(
-    "Ошибка: CONTRACT_ADDRESS или CONTRACT_ABI не определены в конфигурации"
+    "Error: CONTRACT_ADDRESS or CONTRACT_ABI are not defined in configuration"
   );
 }
 export async function POST(request: Request) {
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Используем обычный JsonRpcProvider вместо WebSocketProvider для большей стабильности
+    // Using regular JsonRpcProvider instead of WebSocketProvider for better stability
     const provider = new ethers.JsonRpcProvider(
       `https://base-sepolia.infura.io/v3/${INFURA_API_KEY}`
     );
@@ -33,15 +33,15 @@ export async function POST(request: Request) {
     );
 
     try {
-      // Получаем последние события
+      // Get latest events
       const filter = contract.filters.TwitterVerificationResult();
       const events = await contract.queryFilter(filter, -10000);
 
-      // Ищем событие для указанного адреса кошелька
+      // Search for event with specified wallet address
       for (const event of events) {
-        // Правильно обрабатываем событие, проверяя, является ли оно EventLog
+        // Properly handle the event by checking if it's an EventLog
         if ("args" in event && event.args) {
-          // Проверяем, что args существует и имеет нужную структуру
+          // Check if args exists and has the required structure
           if (Array.isArray(event.args) && event.args.length >= 4) {
             const [userID, wallet, isSuccess, errorMsg] = event.args;
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
             }
           }
         } else if (event.topics && event.topics.length >= 2) {
-          // Для обычных логов пытаемся декодировать данные
+          // For regular logs, try to decode the data
           try {
             const iface = new ethers.Interface(CONTRACT_ABI);
             const decoded = iface.parseLog({
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // Если событие не найдено
+      // If event is not found
       return NextResponse.json({ found: false });
     } catch (contractError) {
       console.error("Error querying contract events:", contractError);

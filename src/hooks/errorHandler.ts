@@ -28,7 +28,7 @@ export const errorHandlers = [
 ];
 
 export const getErrorMessage = (error: any): string => {
-  // Проверяем ошибки отклонения транзакции пользователем
+  // Check for user rejection errors
   if (
     error.code === 4001 ||
     error.message?.includes("user rejected") ||
@@ -39,19 +39,19 @@ export const getErrorMessage = (error: any): string => {
     return "Transaction cancelled";
   }
 
-  // Проверяем ошибки сети
+  // Check for network errors
   if (error.message?.includes("network")) {
     return "Network error occurred. Please check your connection and try again.";
   }
 
-  // Проверяем ошибки газа
+  // Check for gas errors
   if (error.message?.includes("insufficient funds")) {
     return "Insufficient funds for transaction.";
   }
 
-  // Общие ошибки
+  // General errors
   if (error.message) {
-    return error.message.slice(0, 100); // Ограничиваем длину сообщения
+    return error.message.slice(0, 100); // Limit message length
   }
 
   return "An unknown error occurred. Please try again.";
