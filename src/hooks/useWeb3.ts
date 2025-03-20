@@ -127,7 +127,7 @@ export const useWeb3 = () => {
   }, []);
   const getProvider = useCallback(() => {
     if (!connectedWallet?.provider) {
-      console.error("No wallet connected");
+      // console.error("No wallet connected");
       return null;
     }
 
