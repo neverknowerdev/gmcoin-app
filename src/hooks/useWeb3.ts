@@ -92,6 +92,7 @@ export const useWeb3 = () => {
         phantom,
         walletConnect,
         coinbaseWallet,
+        ambireWallet,
       ],
       connect: {
         showSidebar: true,
