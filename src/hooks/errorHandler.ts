@@ -25,6 +25,11 @@ export const errorHandlers = [
       !error?.message.toLowerCase().includes("user rejected"),
     message: "Relayer service error. Try again later.",
   },
+  {
+    condition: (error: any) =>
+      error?.message.toLowerCase().includes("wallet already linked for that user"),
+    message: "Wallet already linked for this user. Redirecting to dashboard.",
+  },
 ];
 
 export const getErrorMessage = (error: any): string => {
@@ -47,6 +52,11 @@ export const getErrorMessage = (error: any): string => {
   // Check for gas errors
   if (error.message?.includes("insufficient funds")) {
     return "Insufficient funds for transaction.";
+  }
+
+  // Check for "wallet already linked" error
+  if (error.message?.includes("wallet already linked for that user")) {
+    return "Wallet already linked for this user. Redirecting to dashboard.";
   }
 
   // General errors

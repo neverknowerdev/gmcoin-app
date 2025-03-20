@@ -197,6 +197,17 @@ export default function Home() {
       return;
     }
 
+
+    // TEST ERROR
+    // console.log("Generating test error for debugging...");
+    // const testError = new Error("No many");
+    // testError.message = "Some error";
+    // console.error("❌ Test Error:", testError);
+    // setErrorMessage(getErrorMessage(testError));
+    // setTransactionStatus("error");
+    // throw testError;
+
+
     const encryptedAccessToken = sessionStorage.getItem(STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
     const accessToken = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
     const twitterUserId = localStorage.getItem(STORAGE_KEYS.TWITTER_USER_ID);
@@ -264,12 +275,26 @@ export default function Home() {
         console.log(`💰 Gas cost: ${ethers.formatEther(totalGasCost)} ETH`);
       } catch (gasError) {
         console.log(
-          "⚠️ Failed to estimate gas, using API relay instead:",
+          "⚠️ Failed to estimate gas:",
           gasError
         );
-        // If gas estimation fails, use API relay
-        await handleApiRelay(accessToken, signer, address);
-        return;
+        
+        // Check for "wallet already linked for that user" error
+        if ((gasError as any).message?.includes("wallet already linked for that user")) {
+          console.log("✅ Wallet already linked for this user, redirecting to dashboard");
+          // Save completed verification information
+          localStorage.setItem("hasCompletedTwitterVerification", "true");
+          localStorage.setItem("userAuthenticated", "true");
+          // Redirect to dashboard
+          window.location.href = "/";
+          return;
+        }
+        
+        // Display error to user instead of proceeding with API relay
+        console.error("❌ Transaction Error:", gasError);
+        setErrorMessage(getErrorMessage(gasError as any));
+        setTransactionStatus("error");
+        throw gasError;
       }
 
       // Check if user has enough balance for transaction
@@ -297,16 +322,30 @@ export default function Home() {
             txError.message?.includes("insufficient funds") ||
             txError.message?.includes("insufficient balance")
           ) {
-            console.log("⚠️ Insufficient funds, falling back to API relay");
-            await handleApiRelay(accessToken, signer, address);
+            console.log("⚠️ Insufficient funds error");
+            // Display error to user instead of proceeding with API relay
+            console.error("❌ Transaction Error:", txError);
+            setErrorMessage(getErrorMessage(txError));
+            setTransactionStatus("error");
+            throw txError;
+          }
+
+          // Check for "wallet already linked for that user" error
+          if (txError.message?.includes("wallet already linked for that user")) {
+            console.log("✅ Wallet already linked for this user, redirecting to dashboard");
+            // Save completed verification information
+            localStorage.setItem("hasCompletedTwitterVerification", "true");
+            localStorage.setItem("userAuthenticated", "true");
+            // Redirect to dashboard
+            window.location.href = "/";
             return;
           }
 
-          // For other transaction errors, try API relay
+          // For other transaction errors, display error to user instead of using API relay
           console.error("❌ Transaction error:", txError);
-          console.log("⚠️ Falling back to API relay");
-          await handleApiRelay(accessToken, signer, address);
-          return;
+          setErrorMessage(getErrorMessage(txError));
+          setTransactionStatus("error");
+          throw txError;
         }
       } else {
         console.log("⚠️ Insufficient balance, using API relay");
