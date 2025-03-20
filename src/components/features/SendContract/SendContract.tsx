@@ -464,6 +464,17 @@ const SendContract: React.FC<SendContractProps> = ({
         return;
       }
 
+      // Check for "wallet already linked" error
+      if (error.message?.includes("wallet already linked for that user")) {
+        console.log("✅ Wallet already linked for this user, redirecting to dashboard");
+        // Save completed verification information
+        localStorage.setItem("hasCompletedTwitterVerification", "true");
+        localStorage.setItem("userAuthenticated", "true");
+        // Redirect to dashboard
+        router.push("/");
+        return;
+      }
+
       // For other errors show error message
       const errorMessage = getErrorMessage(error);
       setErrorMessage(errorMessage);

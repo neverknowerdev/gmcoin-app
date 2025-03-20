@@ -267,6 +267,18 @@ export default function Home() {
           "⚠️ Failed to estimate gas, using API relay instead:",
           gasError
         );
+        
+        // Check for "wallet already linked for that user" error
+        if ((gasError as any).message?.includes("wallet already linked for that user")) {
+          console.log("✅ Wallet already linked for this user, redirecting to dashboard");
+          // Save completed verification information
+          localStorage.setItem("hasCompletedTwitterVerification", "true");
+          localStorage.setItem("userAuthenticated", "true");
+          // Redirect to dashboard
+          window.location.href = "/";
+          return;
+        }
+        
         // If gas estimation fails, use API relay
         await handleApiRelay(accessToken, signer, address);
         return;
@@ -299,6 +311,17 @@ export default function Home() {
           ) {
             console.log("⚠️ Insufficient funds, falling back to API relay");
             await handleApiRelay(accessToken, signer, address);
+            return;
+          }
+
+          // Check for "wallet already linked for that user" error
+          if (txError.message?.includes("wallet already linked for that user")) {
+            console.log("✅ Wallet already linked for this user, redirecting to dashboard");
+            // Save completed verification information
+            localStorage.setItem("hasCompletedTwitterVerification", "true");
+            localStorage.setItem("userAuthenticated", "true");
+            // Redirect to dashboard
+            window.location.href = "/";
             return;
           }
 
