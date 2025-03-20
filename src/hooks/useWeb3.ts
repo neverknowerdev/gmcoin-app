@@ -264,10 +264,48 @@ export const useWeb3 = () => {
           "https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg",
       });
 
-      ambireLoginSDK.openLogin({ chainId: CURRENT_CHAIN.id }); // Changed from 8453
-      console.log("Ambire Wallet created successfully!");
+      // Add event listeners for Ambire
+      ambireLoginSDK.onLoginSuccess((data: { address: string; chainId: number; providerUrl: string }) => {
+        console.log("Ambire login success:", data);
+        // After successful login, update state and connect to web3Onboard
+        if (web3Onboard) {
+          // Try to connect Ambire wallet through onboard
+          web3Onboard.connectWallet();
+        }
+      });
+      
+      ambireLoginSDK.onRegistrationSuccess((data: { address: string; chainId: number; providerUrl: string }) => {
+        console.log("Ambire registration success:", data);
+        // After successful registration, update state and connect to web3Onboard
+        if (web3Onboard) {
+          web3Onboard.connectWallet();
+        }
+      });
+      
+      ambireLoginSDK.onAlreadyLoggedIn((data: { address: string; chainId: number; providerUrl: string }) => {
+        console.log("Ambire already logged in:", data);
+        // User is already logged in, connect to web3Onboard
+        if (web3Onboard) {
+          web3Onboard.connectWallet();
+        }
+      });
+      
+      ambireLoginSDK.onLogoutSuccess(() => {
+        console.log("Ambire logout success");
+        // Disconnect wallet from web3Onboard if it was connected
+        if (web3Onboard && connectedWallet && connectedWallet.label === 'Ambire') {
+          web3Onboard.disconnectWallet(connectedWallet);
+        }
+      });
+
+      // Open login modal
+      ambireLoginSDK.openLogin({ chainId: CURRENT_CHAIN.id });
+      console.log("Ambire Wallet login modal opened!");
+      
+      return ambireLoginSDK;
     } catch (error) {
       console.error("Error creating Ambire Wallet:", error);
+      return null;
     }
   };
   const disconnect = async () => {
@@ -275,6 +313,16 @@ export const useWeb3 = () => {
 
     try {
       if (connectedWallet) {
+        // Check if the disconnecting wallet is Ambire
+        if (connectedWallet.label === 'Ambire') {
+          // Create SDK instance and call logout
+          const ambireLoginSDK = new AmbireLoginSDK({
+            dappName: "GM",
+            dappIconPath:
+              "https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg",
+          });
+          ambireLoginSDK.openLogout();
+        }
         await web3Onboard.disconnectWallet(connectedWallet);
         setConnectedWallet(null);
         setConnectedChain(null);

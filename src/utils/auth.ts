@@ -14,8 +14,23 @@ export const generateCodeVerifier = (): string => {
   };
   
   export const generateCodeChallenge = async (verifier: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(verifier);
-    const digest = await window.crypto.subtle.digest("SHA-256", data);
-    return base64UrlEncode(digest);
+    try {
+      if (!window.crypto || !window.crypto.subtle) {
+        console.error("window.crypto.subtle is not available. Possibly insecure context (not HTTPS)");
+        const fallbackEncoder = new TextEncoder();
+        const fallbackData = fallbackEncoder.encode(verifier);
+        return base64UrlEncode(fallbackData.buffer as ArrayBuffer);
+      }
+
+      const encoder = new TextEncoder();
+      const data = encoder.encode(verifier);
+      const digest = await window.crypto.subtle.digest("SHA-256", data);
+      return base64UrlEncode(digest);
+    } catch (error) {
+      console.error("Error generating code challenge:", error);
+      // Fallback option in case of error
+      const errorEncoder = new TextEncoder();
+      const errorData = errorEncoder.encode(verifier);
+      return base64UrlEncode(errorData.buffer as ArrayBuffer);
+    }
   };
