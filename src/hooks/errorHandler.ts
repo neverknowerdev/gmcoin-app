@@ -23,7 +23,14 @@ export const errorHandlers = [
     condition: (error: any) =>
       error?.message.toLowerCase().includes("relayer service error") &&
       !error?.message.toLowerCase().includes("user rejected"),
-    message: "Relayer service error. Try again later.",
+    message: (error: any) => {
+      // Extract the actual error message if available
+      const match = error?.message.match(/Relayer service error: (.*)/);
+      if (match && match[1]) {
+        return `${match[1]}`;
+      }
+      return "Relayer service error. Try again later.";
+    },
   },
   {
     condition: (error: any) =>
@@ -33,6 +40,17 @@ export const errorHandlers = [
 ];
 
 export const getErrorMessage = (error: any): string => {
+  // First check if any of our handlers match
+  for (const handler of errorHandlers) {
+    if (handler.condition(error)) {
+      // If message is a function, call it with the error
+      if (typeof handler.message === 'function') {
+        return handler.message(error);
+      }
+      return handler.message;
+    }
+  }
+
   // Check for user rejection errors
   if (
     error.code === 4001 ||

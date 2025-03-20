@@ -28,7 +28,7 @@ export default function Home() {
   const [isCheckingStorage, setIsCheckingStorage] = useState(true);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(true);
   const [transactionStatus, setTransactionStatus] = useState<
-    "idle" | "pending" | "success" | "error"
+    "idle" | "pending" | "success" | "error" | "sending"
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const {
@@ -373,6 +373,9 @@ export default function Home() {
         "I confirm that I want to verify my Twitter account with GMCoin"
       );
       console.log("Signature received:", signature);
+      
+      // Change status to sending after signature is received
+      setTransactionStatus("sending");
 
       const response = await fetch(API_URL, {
         method: "POST",
@@ -385,7 +388,15 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        // Parse server error message if available
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || `API Error: ${response.status} ${response.statusText}`;
+        } catch (e) {
+          errorMessage = `API Error: ${response.status} ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const txReceipt = await response.json();
@@ -556,6 +567,7 @@ export default function Home() {
             sendTransaction={sendTransaction}
             connect={connect}
             isFirstTimeUser={false}
+            transactionStatus={transactionStatus}
           />
         </div>
       ) : (
@@ -581,6 +593,7 @@ export default function Home() {
               sendTransaction={sendTransaction}
               connect={connect}
               isFirstTimeUser={true}
+              transactionStatus={transactionStatus}
             />
           )}
         </div>

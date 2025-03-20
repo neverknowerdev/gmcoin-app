@@ -17,6 +17,7 @@ interface SendContractProps {
   walletAddress: string;
   connect: () => Promise<void>;
   isFirstTimeUser?: boolean;
+  transactionStatus?: "idle" | "pending" | "sending" | "success" | "error";
 }
 
 const SendContract: React.FC<SendContractProps> = ({
@@ -25,13 +26,14 @@ const SendContract: React.FC<SendContractProps> = ({
   sendTransaction,
   connect,
   isFirstTimeUser = true, // Default to true if not specified
+  transactionStatus,
 }) => {
   const [wallet, setWallet] = useState(walletAddress);
   const [walletAdd, setWalletAdd] = useState(walletAddress);
   const { getProvider } = useWeb3();
   const [showTooltip, setShowTooltip] = useState(false);
   const [modalState, setModalState] = useState<
-    "loading" | "error" | "success" | "wrongNetwork" | null
+    "loading" | "error" | "success" | "wrongNetwork" | "sending" | null
   >(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
@@ -400,6 +402,19 @@ const SendContract: React.FC<SendContractProps> = ({
     }
   }, [connectedWallet]);
 
+  // Update modal state whenever transactionStatus changes
+  useEffect(() => {
+    if (transactionStatus === "pending") {
+      setModalState("loading");
+    } else if (transactionStatus === "sending") {
+      setModalState("sending");
+    } else if (transactionStatus === "success") {
+      setModalState("success");
+    } else if (transactionStatus === "error") {
+      setModalState("error");
+    }
+  }, [transactionStatus]);
+
   const handleSendTransaction = async () => {
     try {
       setModalState("loading");
@@ -422,7 +437,7 @@ const SendContract: React.FC<SendContractProps> = ({
 
             // Save verification status only after successful transaction
             localStorage.setItem("hasCompletedTwitterVerification", "true");
-            setModalState("success");
+            // Modal state is now handled by the useEffect monitoring transactionStatus
           } catch (txError) {
             // Pass any errors up to the outer catch block
             throw txError;
@@ -613,6 +628,35 @@ const SendContract: React.FC<SendContractProps> = ({
                   <span>I</span>
                   <span>R</span>
                   <span>M</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {modalState === "sending" && (
+            <div className={styles.modalContent}>
+              <div className={styles.loadingContainer}>
+                <div className={styles.loadingText}>
+                  <span>S</span>
+                  <span>E</span>
+                  <span>N</span>
+                  <span>D</span>
+                  <span>I</span>
+                  <span>N</span>
+                  <span>G</span>
+                </div>
+                <div className={styles.loadingText}>
+                  <span>T</span>
+                  <span>R</span>
+                  <span>A</span>
+                  <span>N</span>
+                  <span>S</span>
+                  <span>A</span>
+                  <span>C</span>
+                  <span>T</span>
+                  <span>I</span>
+                  <span>O</span>
+                  <span>N</span>
                 </div>
               </div>
             </div>
