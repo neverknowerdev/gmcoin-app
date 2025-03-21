@@ -243,8 +243,40 @@ export default function Home() {
       const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
       const address = await signer.getAddress();
-      const balance = await browserProvider.getBalance(address);
-      console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
+      let balance = BigInt(0);
+      
+      try {
+        // Check wallet type
+        const isAmbireWallet = connectedWallet?.label === 'Ambire';
+        
+        if (isAmbireWallet) {
+          console.log("Using alternative balance retrieval method for Ambire");
+          // For Ambire we use a different way to get balance
+          const response = await fetch(`https://base-sepolia.blockscout.com/api/v2/addresses/${address}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.coin_balance) {
+              // Convert balance from string to BigInt
+              balance = ethers.parseEther(data.coin_balance);
+              console.log(`Ambire wallet balance: ${ethers.formatEther(balance)} ETH`);
+            }
+          } else {
+            // If API is not available, just continue with zero balance
+            console.log("Failed to get balance via API, continuing with API relay");
+            await handleApiRelay(accessToken, signer, address);
+            return;
+          }
+        } else {
+          // For regular wallets use the standard method
+          balance = await browserProvider.getBalance(address);
+          console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
+        }
+      } catch (balanceError) {
+        console.error("❌ Error getting balance:", balanceError);
+        // If balance retrieval failed, use API relay
+        await handleApiRelay(accessToken, signer, address);
+        return;
+      }
 
       // Check if we have the required data for the contract call
       if (!encryptedAccessToken || !twitterUserId) {

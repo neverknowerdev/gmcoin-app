@@ -12,7 +12,10 @@ import { useConnectWallet } from "@web3-onboard/react";
 import { CURRENT_CHAIN } from "@/src/config";
 
 interface SendContractProps {
-  connectedWallet: { accounts: { address: string }[] } | null;
+  connectedWallet: { 
+    accounts: { address: string }[],
+    label?: string  
+  } | null;
   sendTransaction: () => Promise<void>;
   walletAddress: string;
   connect: () => Promise<void>;
@@ -30,7 +33,7 @@ const SendContract: React.FC<SendContractProps> = ({
 }) => {
   const [wallet, setWallet] = useState(walletAddress);
   const [walletAdd, setWalletAdd] = useState(walletAddress);
-  const { getProvider } = useWeb3();
+  const { getProvider, getSigner } = useWeb3();
   const [showTooltip, setShowTooltip] = useState(false);
   const [modalState, setModalState] = useState<
     "loading" | "error" | "success" | "wrongNetwork" | "sending" | null
@@ -119,7 +122,15 @@ const SendContract: React.FC<SendContractProps> = ({
 
     if (!isCorrectNetwork) {
       console.log("Wrong network, attempting to switch...");
+      // Show error message, but try to switch network immediately
       setModalState("wrongNetwork");
+      setErrorMessage(`Please switch to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`);
+      
+      // If we have an Ambire wallet, add instructions for manual network switch
+      if (connectedWallet?.label === 'Ambire') {
+        setErrorMessage(`For Ambire wallet: please switch to network ${CURRENT_CHAIN.label} manually in wallet settings.`);
+      }
+      
       return false;
     }
 
@@ -467,6 +478,44 @@ const SendContract: React.FC<SendContractProps> = ({
       // Check network before sending transaction
       const networkCorrect = await ensureCorrectNetwork();
       if (!networkCorrect) return;
+
+      // Additional check for Ambire wallet
+      if (connectedWallet?.label === 'Ambire') {
+        console.log("Using Ambire wallet, using API relay to bypass limitations");
+        
+        // Force use of API relay for Ambire due to wallet limitations
+        const provider = getProvider();
+        const signer = await getSigner();
+        
+        if (!signer) {
+          throw new Error("Failed to get signer");
+        }
+        
+        const address = await signer.getAddress();
+        const accessToken = sessionStorage.getItem("accessToken");
+        
+        try {
+          // Add delay before opening signature window
+          setTimeout(async () => {
+            try {
+              // Show user waiting for signature indicator
+              setModalState("loading");
+              
+              // Call function that handles the API call
+              await sendTransaction();
+            } catch (delayedError) {
+              console.error("Error after delay:", delayedError);
+              handleTransactionError(delayedError);
+            }
+          }, 500);
+          
+          return; // End execution of the main function
+        } catch (apiError) {
+          console.error("Error processing API for Ambire:", apiError);
+          handleTransactionError(apiError);
+          return;
+        }
+      }
 
       // Add a timeout to detect if the transaction is taking too long
       // This helps catch cases when a user closes the wallet window without rejecting

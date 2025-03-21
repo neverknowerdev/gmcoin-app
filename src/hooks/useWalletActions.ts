@@ -29,8 +29,59 @@ export const useWalletActions = ({
     console.log("handleSwitchNetwork");
 
     try {
+      // Check if wallet is initialized and web3Onboard is initialized
+      if (!web3Onboard) {
+        console.error("❌ web3Onboard is not initialized");
+        setErrorMessage("Web wallet initialization error");
+        setModalState("error");
+        return false;
+      }
+
+      // Get wallet list through subscription API with Promise
+      const wallets = await new Promise<any[]>((resolve) => {
+        let walletsList: any[] = [];
+        const sub = web3Onboard.state.select('wallets').subscribe((w: any[]) => {
+          walletsList = w;
+          sub.unsubscribe();
+          resolve(w);
+        });
+      });
+      
+      const walletConnected = wallets && wallets.length > 0;
+
+      // If wallet is not connected, connect it
+      if (!walletConnected) {
+        console.error("❌ Wallet must be connected before switching network");
+        console.log("Trying to connect wallet first...");
+        
+        // First connect the wallet
+        await connect();
+        
+        // Check again after connection
+        const connectedWallets = await new Promise<any[]>((resolve) => {
+          let walletsList: any[] = [];
+          const sub = web3Onboard.state.select('wallets').subscribe((w: any[]) => {
+            walletsList = w;
+            sub.unsubscribe();
+            resolve(w);
+          });
+        });
+        
+        const isConnected = connectedWallets && connectedWallets.length > 0;
+        
+        if (!isConnected) {
+          console.error("❌ Failed to connect wallet");
+          setErrorMessage("Please connect your wallet first");
+          setModalState("error");
+          return false;
+        }
+        
+        console.log("✅ Wallet connected successfully");
+      }
+
       // Use web3Onboard to switch network
-      const success = await web3Onboard?.setChain({
+      console.log("Attempting to switch network...");
+      const success = await web3Onboard.setChain({
         chainId: CURRENT_CHAIN.hexId,
       });
 
@@ -61,7 +112,7 @@ export const useWalletActions = ({
       setModalState("error");
       return false;
     }
-  }, [web3Onboard, setIsWrongNetwork, setModalState, setErrorMessage]);
+  }, [web3Onboard, setIsWrongNetwork, setModalState, setErrorMessage, connect]);
 
   // Function to check network correctness
   const checkNetwork = useCallback(async () => {

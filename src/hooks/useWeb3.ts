@@ -142,7 +142,111 @@ export const useWeb3 = () => {
         );
       }
 
-      // Use BrowserProvider instead of Web3Provider
+      // For Ambire wallet use modified provider
+      if (connectedWallet.label === 'Ambire') {
+        console.log("Creating modified provider for Ambire");
+        
+        // Create standard BrowserProvider
+        const baseProvider = new ethers.BrowserProvider(
+          connectedWallet.provider,
+          "any"
+        );
+        
+        // Intercept calls to methods that may not be supported by Ambire
+        const ambireProvider = {
+          ...baseProvider,
+          
+          // Override getBalance method
+          getBalance: async (address: string) => {
+            try {
+              // First try standard method
+              return await baseProvider.getBalance(address);
+            } catch (error) {
+              console.log("Error calling getBalance, using alternative method", error);
+              
+              // In case of error use API to get balance
+              try {
+                const response = await fetch(`https://base-sepolia.blockscout.com/api/v2/addresses/${address}`);
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data && data.coin_balance) {
+                    return ethers.parseEther(data.coin_balance);
+                  }
+                }
+              } catch (apiError) {
+                console.error("Error querying API blockscout:", apiError);
+              }
+              
+              // If all methods fail, return zero balance
+              console.warn("Failed to get balance, returning 0");
+              return BigInt(0);
+            }
+          },
+          
+          // Add getSigner method for compatibility
+          getSigner: async () => {
+            return await baseProvider.getSigner();
+          },
+          
+          // Add getFeeData method for compatibility
+          getFeeData: async () => {
+            try {
+              return await baseProvider.getFeeData();
+            } catch (error) {
+              console.error("Error calling getFeeData:", error);
+              // Return default values if the method fails
+              return {
+                gasPrice: BigInt(10000000000), // 10 gwei default
+                maxFeePerGas: null,
+                maxPriorityFeePerGas: null
+              };
+            }
+          },
+          
+          // Need to override call method
+          call: async (transaction: any) => {
+            try {
+              return await baseProvider.call(transaction);
+            } catch (error: any) {
+              console.error("Error calling call:", error);
+              
+              // Check if error is related to eth_getBalance method
+              if (error.message && error.message.includes("eth_getBalance")) {
+                console.warn("Problem with eth_getBalance, returning zero result");
+                return "0x0";
+              }
+              
+              throw error; // Propagate other errors
+            }
+          }
+        };
+        
+        // Add network event handler
+        baseProvider.on(
+          "network",
+          (
+            newNetwork: { chainId: number },
+            oldNetwork: { chainId: number } | null
+          ) => {
+            if (oldNetwork && newNetwork.chainId !== oldNetwork.chainId) {
+              console.log(
+                `Network changed from ${oldNetwork.chainId} to ${newNetwork.chainId}`
+              );
+
+              // If network changed to incorrect, show warning
+              if (newNetwork.chainId !== CURRENT_CHAIN.id) {
+                console.warn(
+                  `Network changed to incorrect network: ${newNetwork.chainId}, expected: ${CURRENT_CHAIN.id}`
+                );
+              }
+            }
+          }
+        );
+        
+        return ambireProvider;
+      }
+
+      // Use BrowserProvider instead of Web3Provider for non-Ambire wallets
       const provider = new ethers.BrowserProvider(
         connectedWallet.provider,
         "any"
@@ -371,15 +475,48 @@ export const useWeb3 = () => {
               return false;
             }
             
-            console.log("Removing unpermitted intrinsics");
+            console.log("Switching network for Ambire wallet");
             // For Ambire we need to use a specific method
             try {
               const provider = new ethers.BrowserProvider(wallet.provider);
               await provider.send('wallet_switchEthereumChain', [{ chainId: CURRENT_CHAIN.hexId }]);
-              console.log(`✅ Successfully switched to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`);
+              console.log(`✅ Sent switch request to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`);
+              
+              // Update UI after a short delay for Ambire
+              setTimeout(async () => {
+                // Check if the network has actually changed
+                try {
+                  const updatedChainId = await provider.send('eth_chainId', []);
+                  const newChainId = parseInt(updatedChainId, 16);
+                  console.log(`After switch check: chain ID now ${newChainId}, target is ${CURRENT_CHAIN.id}`);
+                  
+                  if (newChainId === CURRENT_CHAIN.id) {
+                    console.log(`✅ Successfully verified switch to ${CURRENT_CHAIN.label}`);
+                    // Force update UI if web3Onboard hasn't updated it
+                    if (connectedChain?.id !== CURRENT_CHAIN.hexId) {
+                      // Use the correct approach to access state
+                      web3Onboard.state.select("chains").subscribe((chains: Chain[]) => {
+                        // Find the target chain and update state
+                        const targetChain = chains.find(chain => chain.id === CURRENT_CHAIN.hexId);
+                        if (targetChain) {
+                          setConnectedChain(targetChain);
+                        }
+                      });
+                    }
+                  } else {
+                    console.warn(`⚠️ Network switch verification failed, actual: ${newChainId}, expected: ${CURRENT_CHAIN.id}`);
+                    // Show dialog to the user for manual switching
+                    window.alert(`Please manually switch the network in your Ambire wallet to ${CURRENT_CHAIN.label}`);
+                  }
+                } catch (verifyError) {
+                  console.error("Error verifying chain switch:", verifyError);
+                }
+              }, 1500);
+              
               return true;
             } catch (error) {
               console.error("Error switching network with direct provider call:", error);
+              window.alert(`Failed to switch network automatically. Please manually switch to ${CURRENT_CHAIN.label} in your Ambire wallet.`);
             }
           }
           
