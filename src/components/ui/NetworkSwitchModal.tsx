@@ -46,8 +46,8 @@ export const NetworkSwitchModal: React.FC<NetworkSwitchModalProps> = ({
       }]);
       
       onClose();
-    } catch (e) {
-      console.error("Error switching network:", e);
+    } catch (error: any) {
+      console.error("Error switching network:", error);
     }
   };
 
@@ -76,7 +76,7 @@ export const NetworkSwitchModal: React.FC<NetworkSwitchModalProps> = ({
   );
 };
 
-  // Хелпер-функция для показа модального окна
+// Helper function to show modal window
 export const showReactNetworkSwitchModal = (
   provider: any, 
   setModalState: React.Dispatch<React.SetStateAction<boolean>>

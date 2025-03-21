@@ -474,14 +474,20 @@ export const useWeb3 = () => {
           console.log(`Wrong network: ${currentChainId}, required ${CURRENT_CHAIN.id}`);
           console.log("Wrong network, attempting to switch...");
           
+          // Detect browser type for different handling approaches
+          const isFirefox = navigator.userAgent.indexOf("Firefox") > -1;
+          const isChrome = navigator.userAgent.indexOf("Chrome") > -1;
+          const isSafari = navigator.userAgent.indexOf("Safari") > -1 && !isChrome;
+          const isEdge = navigator.userAgent.indexOf("Edg") > -1;
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          
+          console.log(`Browser detection: Firefox: ${isFirefox}, Chrome: ${isChrome}, Safari: ${isSafari}, Edge: ${isEdge}, Mobile: ${isMobile}`);
+          
           // For Ambire wallet and other mobile devices
           // Use direct method with wallet_addEthereumChain instead of wallet_switchEthereumChain
           try {
-            // Check UserAgent to detect mobile device
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            // First try simplified method on mobile devices
-            if (isMobile || wallet.label === 'Ambire') {
+            // For mobile devices and specific browsers, use direct provider approach
+            if (isMobile || wallet.label === 'Ambire' || isFirefox) {
               console.log("Using direct provider method for network switching");
               
               // Create provider from current wallet
@@ -505,7 +511,11 @@ export const useWeb3 = () => {
               // Then try to switch to this network
               await provider.send('wallet_switchEthereumChain', [{ 
                 chainId: CURRENT_CHAIN.hexId 
-              }]);
+              }]).catch(e => {
+                console.log("Error in first switch attempt:", e);
+                // Show modal for manual switching if the direct switch fails
+                setTimeout(() => showNetworkSwitchModal(wallet), 500);
+              });
               
               console.log(`Sent direct switch request to network ${CURRENT_CHAIN.label}`);
               
@@ -530,9 +540,24 @@ export const useWeb3 = () => {
                         chainId: CURRENT_CHAIN.hexId 
                       }]);
                       
-                      // Ask user to switch manually
-                      console.log("Asking user to manually switch network");
-                      showNetworkSwitchModal(wallet);
+                      // Check one more time after short delay
+                      setTimeout(async () => {
+                        try {
+                          const finalChainId = await provider.send('eth_chainId', []);
+                          const finalNumericChainId = parseInt(finalChainId, 16);
+                          
+                          if (finalNumericChainId === CURRENT_CHAIN.id) {
+                            console.log(`✅ Second attempt successful, switched to ${CURRENT_CHAIN.label}`);
+                            updateNetworkState(CURRENT_CHAIN.hexId);
+                          } else {
+                            // Ask user to switch manually
+                            console.log("Still on wrong network, asking user to manually switch network");
+                            showNetworkSwitchModal(wallet);
+                          }
+                        } catch (e) {
+                          showNetworkSwitchModal(wallet);
+                        }
+                      }, 1000);
                     } catch (retryError) {
                       console.error("Second attempt failed:", retryError);
                       showNetworkSwitchModal(wallet);
@@ -560,6 +585,22 @@ export const useWeb3 = () => {
               
               // Fallback method - direct call to wallet_switchEthereumChain
               const provider = new ethers.BrowserProvider(wallet.provider);
+              
+              // Try to add chain first (safer approach for all browsers)
+              await provider.send('wallet_addEthereumChain', [{
+                chainId: CURRENT_CHAIN.hexId,
+                chainName: CURRENT_CHAIN.label,
+                nativeCurrency: {
+                  name: CURRENT_CHAIN.token,
+                  symbol: CURRENT_CHAIN.token,
+                  decimals: 18
+                },
+                rpcUrls: [CURRENT_CHAIN.rpcUrl],
+                blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl]
+              }]).catch(e => {
+                console.log("Error adding chain in fallback, proceeding to switch:", e);
+              });
+              
               await provider.send('wallet_switchEthereumChain', [{ 
                 chainId: CURRENT_CHAIN.hexId 
               }]);
