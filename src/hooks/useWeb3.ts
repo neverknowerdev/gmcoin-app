@@ -286,49 +286,50 @@ export const useWeb3 = () => {
     }
   };
   const disconnect = async () => {
-    if (!web3Onboard || !connectedWallet) return;
-
+    if (!web3Onboard || !connectedWallet) {
+      console.log("No wallet or onboard to disconnect");
+      return;
+    }
+  
     try {
-      if (connectedWallet) {
-        // Create a local copy of the wallet for modification
-        const wallet = {...connectedWallet};
-        
-        // Fix for OKX and other wallets that might have issues with the icon
-        if (typeof wallet.icon === 'object' || wallet.icon.includes('base64') || wallet.icon.includes('png')) {
-          // Replace problematic icon with a text string
-          wallet.icon = wallet.label || 'Wallet';
-          console.log(`Modified icon for ${wallet.label} wallet`);
-        }
-        
-        // Special handling for Ambire wallet
-        if (wallet.label === 'Ambire') {
-          // Create SDK instance and call logout
+      console.log("Starting wallet disconnection process");
+  
+      // Remove provider, instance, icon, accounts, chains and wagmiConnector fields
+      const { icon, instance, provider, accounts, chains, wagmiConnector, ...walletForDisconnect } = connectedWallet as any;
+  
+      // Additional handling for Ambire wallet
+      if (walletForDisconnect.label === 'Ambire') {
+        try {
           const ambireLoginSDK = new AmbireLoginSDK({
             dappName: "GM",
-            dappIconPath:
-              "https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg",
+            dappIconPath: "GM",
           });
           ambireLoginSDK.openLogout();
+        } catch (ambireError) {
+          console.error("Error with Ambire logout, continuing with standard disconnect:", ambireError);
         }
-        
-        // Disconnect wallet via web3Onboard
-        await web3Onboard.disconnectWallet(wallet);
-        
-        console.log(`Wallet ${wallet.label} disconnected`);
-        
-        // Clear state after disconnection
-        setConnectedWallet(null);
-        setConnectedChain(null);
       }
-    } catch (error) {
-      console.error(`Error disconnecting wallet:`, error);
-      
-      // Emergency state cleanup in case of error
+  
+      // Clear UI state
       setConnectedWallet(null);
       setConnectedChain(null);
-      
+  
+      // Perform disconnection in Web3Onboard
+      try {
+        await web3Onboard.disconnectWallet(walletForDisconnect);
+        console.log(`Wallet ${walletForDisconnect.label} disconnected successfully`);
+      } catch (disconnectError) {
+        console.error("Error during wallet disconnection:", disconnectError);
+      }
+    } catch (error) {
+      console.error("Error in disconnect function:", error);
+      setConnectedWallet(null);
+      setConnectedChain(null);
     }
   };
+  
+  
+  
   // Add new function for explicit network switching
   const handleSwitchNetwork = async (wallet: WalletState) => {
     console.log("handleSwitchNetwork called for wallet:", wallet.label);

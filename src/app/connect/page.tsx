@@ -32,6 +32,8 @@ export default function Home() {
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isSignatureRequested, setIsSignatureRequested] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [blockBackActions, setBlockBackActions] = useState(false);
   const {
     connectedWallet,
     connect,
@@ -82,7 +84,7 @@ export default function Home() {
   }, [connectedWallet, currentStep, isCheckingStorage]);
 
   useEffect(() => {
-    if (connectedWallet?.accounts[0]?.address) {
+    if (connectedWallet && connectedWallet.accounts?.[0]?.address) {
       updateWalletInfo(connectedWallet.accounts[0].address);
     }
   }, [connectedWallet, updateWalletInfo]);
@@ -488,7 +490,7 @@ export default function Home() {
   const setupEventListener = () => {
     try {
       // Save wallet address for event checking
-      if (connectedWallet?.accounts[0]?.address) {
+      if (connectedWallet && connectedWallet.accounts?.[0]?.address) {
         localStorage.setItem(
           STORAGE_KEYS.WALLET_ADDRESS,
           connectedWallet.accounts[0].address
@@ -557,19 +559,54 @@ export default function Home() {
   };
 
   const handleBack = async () => {
-    if (currentStep === 2) {
-      setCurrentStep(1);
-      setTransactionStatus("idle");
-      sessionStorage.removeItem(STORAGE_KEYS.CODE);
-      sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
-      setIsTwitterConnected(false);
-    } else if (currentStep === 1) {
-      setCurrentStep(0);
-      await disconnect();
-    } else if (currentStep === 0) {
-      setIsTwitterConnected(false);
-      sessionStorage.removeItem(STORAGE_KEYS.CODE);
-      sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
+    // Если действие назад заблокировано, ничего не делать
+    if (blockBackActions || loading) {
+      console.log("Back action is blocked or loading is in progress");
+      return;
+    }
+
+    // Установить блокировку и загрузку
+    setLoading(true);
+    setBlockBackActions(true);
+
+    try {
+      if (currentStep === 2) {
+        // Сразу изменить интерфейс, не дожидаясь завершения асинхронных операций
+        setCurrentStep(1);
+        setTransactionStatus("idle");
+        sessionStorage.removeItem(STORAGE_KEYS.CODE);
+        sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
+        setIsTwitterConnected(false);
+        
+        // Разблокировать действия назад после небольшой задержки
+        setTimeout(() => {
+          setBlockBackActions(false);
+          setLoading(false);
+        }, 500);
+      } else if (currentStep === 1) {
+        // Сначала изменить UI
+        setCurrentStep(0);
+        
+        // Затем выполнить асинхронное отключение
+        await disconnect();
+        
+        // Удалить блок только после завершения отключения
+        setBlockBackActions(false);
+        setLoading(false);
+      } else if (currentStep === 0) {
+        setIsTwitterConnected(false);
+        sessionStorage.removeItem(STORAGE_KEYS.CODE);
+        sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
+        
+        // Удалить блок для всех случаев, кроме отключения кошелька
+        setBlockBackActions(false);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error in handleBack:", error);
+      // Всегда разблокировать в случае ошибки
+      setBlockBackActions(false);
+      setLoading(false);
     }
   };
 
@@ -600,8 +637,8 @@ export default function Home() {
       {isAuthorized ? (
         <div>
           <SendContract
-            connectedWallet={connectedWallet}
-            walletAddress={connectedWallet?.accounts[0]?.address || ""}
+            connectedWallet={connectedWallet as any}
+            walletAddress={connectedWallet?.accounts?.[0]?.address || ""}
             sendTransaction={sendTransaction}
             connect={connect}
             isFirstTimeUser={false}
@@ -626,8 +663,8 @@ export default function Home() {
 
           {isTwitterConnected && currentStep === 2 && (
             <SendContract
-              connectedWallet={connectedWallet}
-              walletAddress={connectedWallet?.accounts[0]?.address || ""}
+              connectedWallet={connectedWallet as any}
+              walletAddress={connectedWallet?.accounts?.[0]?.address || ""}
               sendTransaction={sendTransaction}
               connect={connect}
               isFirstTimeUser={true}
