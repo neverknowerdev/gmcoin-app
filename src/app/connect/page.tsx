@@ -252,28 +252,58 @@ export default function Home() {
         if (isAmbireWallet) {
           console.log("Using alternative balance retrieval method for Ambire");
           // For Ambire we use a different way to get balance
-          const response = await fetch(`https://base-sepolia.blockscout.com/api/v2/addresses/${address}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data && data.coin_balance) {
-              // Convert balance from string to BigInt
-              balance = ethers.parseEther(data.coin_balance);
-              console.log(`Ambire wallet balance: ${ethers.formatEther(balance)} ETH`);
+          try {
+            // First try Blockscout API
+            const response = await fetch(`https://base-sepolia.blockscout.com/api/v2/addresses/${address}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data && data.coin_balance) {
+                // Convert balance from string to BigInt
+                balance = ethers.parseEther(data.coin_balance);
+                console.log(`Ambire wallet balance: ${ethers.formatEther(balance)} ETH`);
+              } else {
+                // If balance not available in API response
+                console.log("Balance not available in API response, proceeding with zero balance");
+                balance = BigInt(0);
+              }
+            } else {
+              // If API response is not OK
+              console.log("Blockscout API response not OK, trying fallback method");
+              
+              // Try using provider as fallback
+              try {
+                balance = await browserProvider.getBalance(address);
+                console.log(`Fallback balance retrieval successful: ${ethers.formatEther(balance)} ETH`);
+              } catch (fallbackError) {
+                console.warn("Fallback balance retrieval also failed, continuing with zero balance");
+                console.error("Fallback error:", fallbackError);
+                balance = BigInt(0);
+              }
             }
-          } else {
-            // If API is not available, just continue with zero balance
-            console.log("Failed to get balance via API, continuing with API relay");
+          } catch (apiError) {
+            console.error("Error in balance retrieval for Ambire:", apiError);
+            // If all balance retrieval methods failed, continue with API relay
+            console.log("All balance retrieval methods failed, continuing with API relay");
             await handleApiRelay(accessToken, signer, address);
             return;
           }
         } else {
           // For regular wallets use the standard method
-          balance = await browserProvider.getBalance(address);
-          console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
+          try {
+            balance = await browserProvider.getBalance(address);
+            console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
+          } catch (standardBalanceError) {
+            console.error("❌ Error getting balance with standard method:", standardBalanceError);
+            
+            // For any wallet with balance retrieval issues, use API relay
+            console.log("Balance retrieval failed, continuing with API relay");
+            await handleApiRelay(accessToken, signer, address);
+            return;
+          }
         }
       } catch (balanceError) {
-        console.error("❌ Error getting balance:", balanceError);
-        // If balance retrieval failed, use API relay
+        console.error("❌ Error in balance retrieval flow:", balanceError);
+        // If balance retrieval failed at any point, use API relay
         await handleApiRelay(accessToken, signer, address);
         return;
       }

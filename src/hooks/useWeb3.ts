@@ -210,10 +210,31 @@ export const useWeb3 = () => {
             } catch (error: any) {
               console.error("Error calling call:", error);
               
-              // Check if error is related to eth_getBalance method
-              if (error.message && error.message.includes("eth_getBalance")) {
-                console.warn("Problem with eth_getBalance, returning zero result");
-                return "0x0";
+              // Check if error is related to eth_ methods
+              if (error.message) {
+                // Handle eth_getBalance errors
+                if (error.message.includes("eth_getBalance")) {
+                  console.warn("Problem with eth_getBalance, returning zero result");
+                  return "0x0";
+                }
+                
+                // Handle "could not coalesce error" or code 4200 errors (unsupported methods)
+                if (error.message.includes("could not coalesce error") || 
+                    error.message.includes("Provider does not support") || 
+                    (error.code && error.code === 4200)) {
+                  console.warn("Provider does not support requested method, returning default value");
+                  
+                  // For call transactions that might be requesting balance
+                  if (transaction && 
+                      (transaction.data === '0x70a08231' || 
+                       (transaction.data && transaction.data.startsWith('0x70a08231')))) {
+                    console.log("Balance request detected, returning empty balance");
+                    return "0x0";
+                  }
+                  
+                  // For other method calls return empty result
+                  return "0x";
+                }
               }
               
               throw error; // Propagate other errors

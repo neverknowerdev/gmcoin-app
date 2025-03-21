@@ -484,17 +484,30 @@ const SendContract: React.FC<SendContractProps> = ({
         console.log("Using Ambire wallet, using API relay to bypass limitations");
         
         // Force use of API relay for Ambire due to wallet limitations
-        const provider = getProvider();
-        const signer = await getSigner();
-        
-        if (!signer) {
-          throw new Error("Failed to get signer");
-        }
-        
-        const address = await signer.getAddress();
-        const accessToken = sessionStorage.getItem("accessToken");
-        
         try {
+          const provider = getProvider();
+          
+          if (!provider) {
+            throw new Error("Failed to get provider");
+          }
+          
+          // Always use getSigner for Ambire to ensure we have the most recent provider state
+          const signer = await provider.getSigner().catch(error => {
+            console.error("Error getting signer:", error);
+            throw new Error("Failed to get signer from provider");
+          });
+          
+          if (!signer) {
+            throw new Error("Failed to get signer");
+          }
+          
+          const address = await signer.getAddress().catch(error => {
+            console.error("Error getting address:", error);
+            throw new Error("Failed to get address from signer");
+          });
+          
+          const accessToken = sessionStorage.getItem("accessToken");
+          
           // Add delay before opening signature window
           setTimeout(async () => {
             try {
@@ -507,12 +520,12 @@ const SendContract: React.FC<SendContractProps> = ({
               console.error("Error after delay:", delayedError);
               handleTransactionError(delayedError);
             }
-          }, 500);
+          }, 1000); // Increase timeout to 1000ms for better stability
           
           return; // End execution of the main function
-        } catch (apiError) {
-          console.error("Error processing API for Ambire:", apiError);
-          handleTransactionError(apiError);
+        } catch (setupError) {
+          console.error("Error setting up transaction for Ambire:", setupError);
+          handleTransactionError(setupError);
           return;
         }
       }
