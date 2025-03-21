@@ -290,8 +290,18 @@ export const useWeb3 = () => {
 
     try {
       if (connectedWallet) {
-        // Check if the disconnecting wallet is Ambire
-        if (connectedWallet.label === 'Ambire') {
+        // Create a local copy of the wallet for modification
+        const wallet = {...connectedWallet};
+        
+        // Fix for OKX and other wallets that might have issues with the icon
+        if (typeof wallet.icon === 'object' || wallet.icon.includes('base64') || wallet.icon.includes('png')) {
+          // Replace problematic icon with a text string
+          wallet.icon = wallet.label || 'Wallet';
+          console.log(`Modified icon for ${wallet.label} wallet`);
+        }
+        
+        // Special handling for Ambire wallet
+        if (wallet.label === 'Ambire') {
           // Create SDK instance and call logout
           const ambireLoginSDK = new AmbireLoginSDK({
             dappName: "GM",
@@ -300,12 +310,23 @@ export const useWeb3 = () => {
           });
           ambireLoginSDK.openLogout();
         }
-        await web3Onboard.disconnectWallet(connectedWallet);
+        
+        // Disconnect wallet via web3Onboard
+        await web3Onboard.disconnectWallet(wallet);
+        
+        console.log(`Wallet ${wallet.label} disconnected`);
+        
+        // Clear state after disconnection
         setConnectedWallet(null);
         setConnectedChain(null);
       }
     } catch (error) {
-      console.error("Error disconnecting wallet:", error);
+      console.error(`Error disconnecting wallet:`, error);
+      
+      // Emergency state cleanup in case of error
+      setConnectedWallet(null);
+      setConnectedChain(null);
+      
     }
   };
   // Add new function for explicit network switching
