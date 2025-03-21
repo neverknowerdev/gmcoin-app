@@ -621,38 +621,38 @@ export default function Home() {
   };
 
   const handleBack = async () => {
-    // Если действие назад заблокировано, ничего не делать
+    // If back action is blocked, do nothing
     if (blockBackActions || loading) {
       console.log("Back action is blocked or loading is in progress");
       return;
     }
 
-    // Установить блокировку и загрузку
+    // Set block and loading
     setLoading(true);
     setBlockBackActions(true);
 
     try {
       if (currentStep === 2) {
-        // Сразу изменить интерфейс, не дожидаясь завершения асинхронных операций
+        // Immediately change interface without waiting for async operations to complete
         setCurrentStep(1);
         setTransactionStatus("idle");
         sessionStorage.removeItem(STORAGE_KEYS.CODE);
         sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
         setIsTwitterConnected(false);
         
-        // Разблокировать действия назад после небольшой задержки
+        // Unblock back actions after a short delay
         setTimeout(() => {
           setBlockBackActions(false);
           setLoading(false);
         }, 500);
       } else if (currentStep === 1) {
-        // Сначала изменить UI
+        // First change UI
         setCurrentStep(0);
         
-        // Затем выполнить асинхронное отключение
+        // Then perform async disconnection
         await disconnect();
         
-        // Удалить блок только после завершения отключения
+        // Remove block only after disconnection is complete
         setBlockBackActions(false);
         setLoading(false);
       } else if (currentStep === 0) {
@@ -660,13 +660,13 @@ export default function Home() {
         sessionStorage.removeItem(STORAGE_KEYS.CODE);
         sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
         
-        // Удалить блок для всех случаев, кроме отключения кошелька
+        // Remove block for all cases except wallet disconnection
         setBlockBackActions(false);
         setLoading(false);
       }
     } catch (error) {
       console.error("Error in handleBack:", error);
-      // Всегда разблокировать в случае ошибки
+      // Always unblock in case of error
       setBlockBackActions(false);
       setLoading(false);
     }
