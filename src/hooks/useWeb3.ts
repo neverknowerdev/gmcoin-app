@@ -106,10 +106,9 @@ export const useWeb3 = () => {
           rpcUrl: CURRENT_CHAIN.rpcUrl,
         },
       ],
-
       appMetadata: {
         name: "GM",
-        icon: "https://i.ibb.co/8DgJBg1H/Ac-WFYz-Ul-400x400-5.jpg",
+        icon: "/image/wallet/airship.webp",
         description: "GM ☀️ first tweet&mint coin",
         recommendedInjectedWallets: [
           { name: "MetaMask", url: "https://metamask.io" },
@@ -193,43 +192,8 @@ export const useWeb3 = () => {
       if (wallets.length > 0) {
         setConnectedWallet(wallets[0]);
 
-        // Check current network
-        const currentChain = wallets[0].chains?.[0];
-        if (currentChain) {
-          const currentChainId = parseInt(currentChain.id, 16);
-          console.log(
-            `Текущая сеть: ${currentChain.label} (${currentChainId})`
-          );
-
-          // If network doesn't match required, switch
-          if (currentChainId !== CURRENT_CHAIN.id) {
-            console.log(
-              `Switching to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
-            );
-
-            // Add delay before switching network for stability
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            // Switch to the correct network
-            const success = await web3Onboard.setChain({
-              chainId: CURRENT_CHAIN.hexId,
-            });
-
-            if (success) {
-              console.log(
-                `✅ Successfully switched to network ${CURRENT_CHAIN.label}`
-              );
-            } else {
-              console.warn(
-                `⚠️ Failed to switch to network ${CURRENT_CHAIN.label}`
-              );
-            }
-          } else {
-            console.log(
-              `✅ Already connected to correct network ${CURRENT_CHAIN.label}`
-            );
-          }
-        }
+        // Use new function for network switching
+        await handleSwitchNetwork(wallets[0]);
 
         // Set network change listener
         web3Onboard.state.select("chains").subscribe((chains: Chain[]) => {
@@ -267,10 +231,16 @@ export const useWeb3 = () => {
       // Add event listeners for Ambire
       ambireLoginSDK.onLoginSuccess((data: { address: string; chainId: number; providerUrl: string }) => {
         console.log("Ambire login success:", data);
-        // After successful login, update state and connect to web3Onboard
+        // After successful login, check and switch network
         if (web3Onboard) {
-          // Try to connect Ambire wallet through onboard
-          web3Onboard.connectWallet();
+          web3Onboard.connectWallet().then(wallets => {
+            if (wallets.length > 0 && data.chainId !== CURRENT_CHAIN.id) {
+              // Force network switch after small delay
+              setTimeout(() => {
+                handleSwitchNetwork(wallets[0]);
+              }, 1000);
+            }
+          });
         }
       });
       
@@ -286,7 +256,14 @@ export const useWeb3 = () => {
         console.log("Ambire already logged in:", data);
         // User is already logged in, connect to web3Onboard
         if (web3Onboard) {
-          web3Onboard.connectWallet();
+          web3Onboard.connectWallet().then(wallets => {
+            if (wallets.length > 0 && data.chainId !== CURRENT_CHAIN.id) {
+              // Force network switch after small delay
+              setTimeout(() => {
+                handleSwitchNetwork(wallets[0]);
+              }, 1000);
+            }
+          });
         }
       });
       
@@ -331,6 +308,83 @@ export const useWeb3 = () => {
       console.error("Error disconnecting wallet:", error);
     }
   };
+  // Add new function for explicit network switching
+  const handleSwitchNetwork = async (wallet: WalletState) => {
+    console.log("handleSwitchNetwork called for wallet:", wallet.label);
+    
+    if (!web3Onboard) return false;
+    
+    try {
+      // Check current network
+      const currentChain = wallet.chains?.[0];
+      if (currentChain) {
+        const currentChainId = parseInt(currentChain.id, 16);
+        console.log(`Network check: current ${currentChainId}, target ${CURRENT_CHAIN.id}`);
+        
+        // If network doesn't match required, switch it
+        if (currentChainId !== CURRENT_CHAIN.id) {
+          console.log(`Wrong network: ${currentChainId}, required ${CURRENT_CHAIN.id}`);
+          console.log("Wrong network, attempting to switch...");
+          
+          // Check Ambire Wallet network support
+          if (wallet.label === 'Ambire') {
+            console.log("Detected Ambire wallet");
+            // List of supported networks by Ambire
+            const supportedNetworks = [
+              1, // Ethereum
+              137, // Polygon
+              43114, // Avalanche
+              56, // BNB Chain
+              250, // Fantom Opera
+              42161, // Arbitrum
+              100, // Gnosis Chain
+              10, // Optimism
+              8453, // Base
+              534352, // Scroll
+              1088, // Metis
+            ];
+            
+            if (!supportedNetworks.includes(CURRENT_CHAIN.id)) {
+              console.warn(`Ambire Wallet does not support network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`);
+              return false;
+            }
+            
+            console.log("Removing unpermitted intrinsics");
+            // For Ambire we need to use a specific method
+            try {
+              const provider = new ethers.BrowserProvider(wallet.provider);
+              await provider.send('wallet_switchEthereumChain', [{ chainId: CURRENT_CHAIN.hexId }]);
+              console.log(`✅ Successfully switched to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`);
+              return true;
+            } catch (error) {
+              console.error("Error switching network with direct provider call:", error);
+            }
+          }
+          
+          // Standard method for network switching via onboard
+          const success = await web3Onboard.setChain({
+            chainId: CURRENT_CHAIN.hexId,
+          });
+
+          if (success) {
+            console.log(`✅ Successfully switched to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`);
+            return true;
+          } else {
+            console.warn(`⚠️ Failed to switch to network ${CURRENT_CHAIN.label}`);
+            return false;
+          }
+        } else {
+          console.log(`✅ Already connected to correct network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error("Error in handleSwitchNetwork:", error);
+      return false;
+    }
+    
+    return false;
+  };
   return {
     disconnect,
     web3Onboard,
@@ -340,6 +394,7 @@ export const useWeb3 = () => {
     createAmbireWallet,
     getProvider,
     getSigner,
+    handleSwitchNetwork, // Make function available externally
   };
 };
 
