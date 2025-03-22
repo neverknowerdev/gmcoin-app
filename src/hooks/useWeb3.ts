@@ -501,127 +501,43 @@ export const useWeb3 = () => {
       const chainId = await provider.send("eth_chainId", []);
       const currentChainId = parseInt(chainId, 16);
 
-      if (currentChainId !== CURRENT_CHAIN.id) {
+      // Special handling for switching from mainnet to Base
+      if (currentChainId === 1 || currentChainId !== CURRENT_CHAIN.id) {
         console.log(
-          `Wrong network: ${currentChainId}, required ${CURRENT_CHAIN.id}`
+          `Switching from network ${currentChainId} to Base (${CURRENT_CHAIN.id})`
         );
 
-        // Special handling for Ambire wallet
-        if (wallet.label === "Ambire") {
-          console.log("Handling network switch for Ambire wallet");
-
-          // Show modal window with manual switching instructions
-          showNetworkSwitchModal(wallet);
-
-          // Add network via wallet_addEthereumChain
-          try {
-            await provider.send("wallet_addEthereumChain", [
-              {
-                chainId: CURRENT_CHAIN.hexId,
-                chainName: CURRENT_CHAIN.label,
-                nativeCurrency: {
-                  name: CURRENT_CHAIN.token,
-                  symbol: CURRENT_CHAIN.token,
-                  decimals: 18,
-                },
-                rpcUrls: [CURRENT_CHAIN.rpcUrl],
-                blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl],
-              },
-            ]);
-
-            // Try to switch network
-            await provider.send("wallet_switchEthereumChain", [
-              {
-                chainId: CURRENT_CHAIN.hexId,
-              },
-            ]);
-
-            // Check result after 2 seconds
-            setTimeout(async () => {
-              const newChainId = await provider.send("eth_chainId", []);
-              if (parseInt(newChainId, 16) === CURRENT_CHAIN.id) {
-                updateNetworkState(CURRENT_CHAIN.hexId);
-              }
-            }, 2000);
-          } catch (error) {
-            console.error("Failed to switch network for Ambire:", error);
-            showNetworkSwitchModal(wallet);
-          }
-
-          return false;
-        }
-
-        // Standard method for desktop wallets
-        if (!web3Onboard) {
-          console.warn("web3Onboard not initialized");
-          return false;
-        }
-
-        const success = await web3Onboard.setChain({
-          chainId: CURRENT_CHAIN.hexId,
-        });
-
-        if (success) {
-          console.log(
-            `✅ Successfully switched to network ${CURRENT_CHAIN.label}`
-          );
-          return true;
-        } else {
-          console.warn(`⚠️ Standard method failed, trying direct method`);
-
-          // Fallback method - direct call to wallet_switchEthereumChain
-          const provider = new ethers.BrowserProvider(wallet.provider);
-
-          // Try to add chain first (safer approach for all browsers)
-          await provider
-            .send("wallet_addEthereumChain", [
-              {
-                chainId: CURRENT_CHAIN.hexId,
-                chainName: CURRENT_CHAIN.label,
-                nativeCurrency: {
-                  name: CURRENT_CHAIN.token,
-                  symbol: CURRENT_CHAIN.token,
-                  decimals: 18,
-                },
-                rpcUrls: [CURRENT_CHAIN.rpcUrl],
-                blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl],
-              },
-            ])
-            .catch((e) => {
-              console.log(
-                "Error adding chain in fallback, proceeding to switch:",
-                e
-              );
-            });
-
-          await provider.send("wallet_switchEthereumChain", [
+        try {
+          // First add Base network
+          await provider.send("wallet_addEthereumChain", [
             {
               chainId: CURRENT_CHAIN.hexId,
+              chainName: CURRENT_CHAIN.label,
+              nativeCurrency: {
+                name: CURRENT_CHAIN.token,
+                symbol: CURRENT_CHAIN.token,
+                decimals: 18,
+              },
+              rpcUrls: [CURRENT_CHAIN.rpcUrl],
+              blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl],
             },
           ]);
 
-          // Check result after 1.5 seconds
-          setTimeout(async () => {
-            try {
-              const chainId = await provider.send("eth_chainId", []);
-              if (parseInt(chainId, 16) === CURRENT_CHAIN.id) {
-                updateNetworkState(CURRENT_CHAIN.hexId);
-              } else {
-                showNetworkSwitchModal(wallet);
-              }
-            } catch (e) {
-              showNetworkSwitchModal(wallet);
-            }
-          }, 1500);
+          // Then switch to Base
+          await provider.send("wallet_switchEthereumChain", [
+            { chainId: CURRENT_CHAIN.hexId },
+          ]);
 
+          console.log("✅ Successfully switched to Base network");
           return true;
+        } catch (error) {
+          console.error("Failed to switch network:", error);
+          showNetworkSwitchModal(wallet);
+          return false;
         }
-      } else {
-        console.log(
-          `✅ Already connected to correct network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
-        );
-        return true;
       }
+
+      return true;
     } catch (error) {
       console.error("Error in handleSwitchNetwork:", error);
       showNetworkSwitchModal(wallet);
