@@ -1,4 +1,4 @@
-export type TransactionStatus = "idle" | "pending" | "success" | "error";
+export type TransactionStatus = "idle" | "pending" | "sending" | "success" | "error";
 
 export interface TransactionState {
   status: TransactionStatus;
