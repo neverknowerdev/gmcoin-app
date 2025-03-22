@@ -368,7 +368,7 @@ export const useWeb3 = () => {
         dappName: "GM",
         dappIconPath:
           "https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg",
-        chainId: CURRENT_CHAIN.id,
+        network: CURRENT_CHAIN.id,
       });
 
       ambireLoginSDK.onLoginSuccess(
