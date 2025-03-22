@@ -592,6 +592,29 @@ export const useWeb3 = () => {
           console.error("Error checking current network:", error);
         }
 
+        // Try direct window.ethereum method first for Ambire
+        try {
+          if (window.ethereum) {
+            console.log("Attempting direct window.ethereum method for Ambire");
+            await window.ethereum.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: CURRENT_CHAIN.hexId }],
+            });
+
+            // Verify the switch worked
+            const network = await provider.getNetwork();
+            if (Number(network.chainId) === CURRENT_CHAIN.id) {
+              console.log(
+                "✅ Successfully switched network using window.ethereum"
+              );
+              return true;
+            }
+          }
+        } catch (directError) {
+          console.log("Direct window.ethereum method failed:", directError);
+        }
+
+        // Continue with regular provider method if direct method failed
         try {
           await provider.send("wallet_switchEthereumChain", [
             { chainId: CURRENT_CHAIN.hexId },
@@ -616,6 +639,7 @@ export const useWeb3 = () => {
           console.error("Error switching network for Ambire:", switchError);
 
           try {
+            // Try adding the network first
             await provider.send("wallet_addEthereumChain", [
               {
                 chainId: CURRENT_CHAIN.hexId,
@@ -630,6 +654,7 @@ export const useWeb3 = () => {
               },
             ]);
 
+            // Then try switching again
             await provider.send("wallet_switchEthereumChain", [
               { chainId: CURRENT_CHAIN.hexId },
             ]);
@@ -638,12 +663,14 @@ export const useWeb3 = () => {
             const success = Number(newNetwork.chainId) === CURRENT_CHAIN.id;
 
             if (!success) {
+              // If still failed, show manual switch modal
               showNetworkSwitchModal(wallet);
             }
 
             return success;
           } catch (addError) {
             console.error("Failed to add network:", addError);
+            // Show manual switch modal as last resort
             showNetworkSwitchModal(wallet);
             return false;
           }
@@ -724,16 +751,18 @@ export const useWeb3 = () => {
     getProvider,
     getSigner,
     handleSwitchNetwork,
+    switchToBase,
   };
 };
 
-async function switchToBase() {
-  console.log("switchToBase..");
+export async function switchToBase() {
+  console.log("switchToBase function started");
   const baseChainId = CURRENT_CHAIN.hexId;
 
   const windowEthereum = window.ethereum;
   if (!windowEthereum) {
-    return;
+    console.error("window.ethereum is not available");
+    throw new Error("window.ethereum is not available");
   }
 
   try {
@@ -741,21 +770,58 @@ async function switchToBase() {
     const currentChainId = await windowEthereum.request({
       method: "eth_chainId",
     });
-    console.log("currentChainId", currentChainId);
+    console.log(`Current chain ID: ${currentChainId}, Target: ${baseChainId}`);
 
     if (currentChainId !== baseChainId) {
+      console.log("Attempting to switch chain using window.ethereum.request");
+      // Add delay for Ambire
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Attempt to switch to Base network
       await windowEthereum.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: baseChainId }],
       });
-    }
 
-    console.log(`Connected to ${CURRENT_CHAIN.label} network`);
+      console.log("Switch request sent successfully");
+
+      // Additional verification after switching
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const newChainId = await windowEthereum.request({
+        method: "eth_chainId",
+      });
+
+      if (newChainId === baseChainId) {
+        console.log(
+          `✅ Successfully switched to ${CURRENT_CHAIN.label} network`
+        );
+        return true;
+      } else {
+        console.warn(
+          `⚠️ Chain ID didn't change: current=${newChainId}, expected=${baseChainId}`
+        );
+        // If switch failed, try to add the network
+        throw { code: 4902, message: "Chain not switched, trying to add" };
+      }
+    } else {
+      console.log(`Already on ${CURRENT_CHAIN.label} network`);
+      return true;
+    }
   } catch (switchError: any) {
+    console.error("Error in switchToBase:", switchError);
+
     // If Base isn't added, add it first
-    if (switchError.code && switchError.code === 4902) {
+    if (
+      switchError.code === 4902 ||
+      switchError.message?.includes("Unrecognized chain") ||
+      switchError.message?.includes("Chain not switched")
+    ) {
+      console.log("Chain not recognized, attempting to add it");
+
       try {
+        // Add delay before adding network
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
         await windowEthereum.request({
           method: "wallet_addEthereumChain",
           params: [
@@ -763,8 +829,8 @@ async function switchToBase() {
               chainId: baseChainId,
               chainName: CURRENT_CHAIN.label,
               nativeCurrency: {
-                name: "Base",
-                symbol: "ETH",
+                name: CURRENT_CHAIN.token || "ETH",
+                symbol: CURRENT_CHAIN.token || "ETH",
                 decimals: 18,
               },
               rpcUrls: [CURRENT_CHAIN.rpcUrl],
@@ -773,24 +839,46 @@ async function switchToBase() {
           ],
         });
 
+        console.log("Network add request sent");
+
+        // Short pause before switching
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         // After adding, switch to Base
         await windowEthereum.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: baseChainId }],
         });
 
-        console.log(`${CURRENT_CHAIN.label} network added and switched`);
-      } catch (addError) {
+        // Final verification
+        const finalChainId = await windowEthereum.request({
+          method: "eth_chainId",
+        });
+
+        if (finalChainId === baseChainId) {
+          console.log(
+            `✅ ${CURRENT_CHAIN.label} network added and switched successfully`
+          );
+          return true;
+        } else {
+          console.warn(
+            `⚠️ Final chain check failed: current=${finalChainId}, expected=${baseChainId}`
+          );
+          throw new Error("Failed to switch after adding network");
+        }
+      } catch (addError: any) {
         console.error(
           `Failed to add ${CURRENT_CHAIN.label} network:`,
           addError
         );
+        throw addError;
       }
     } else {
       console.error(
         `Failed to switch to ${CURRENT_CHAIN.label} network:`,
         switchError
       );
+      throw switchError;
     }
   }
 }
