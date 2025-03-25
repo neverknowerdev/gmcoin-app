@@ -14,6 +14,7 @@ const ProgressNavigation: React.FC<ProgressNavigationProps> = ({
   onStepChange,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isBackDisabled, setIsBackDisabled] = useState(false);
 
   const steps = [
     {
@@ -34,11 +35,16 @@ const ProgressNavigation: React.FC<ProgressNavigationProps> = ({
     },
   ];
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      onStepChange(currentStep - 1);
-      onBack();
-    }
+  const handleBackClick = () => {
+    if (isBackDisabled || currentStep === 0) return;
+    
+    setIsBackDisabled(true);
+    
+    onBack();
+    
+    setTimeout(() => {
+      setIsBackDisabled(false);
+    }, 500);
   };
 
   return (
@@ -52,7 +58,11 @@ const ProgressNavigation: React.FC<ProgressNavigationProps> = ({
       <div className={styles.decorativeLine}></div>
       <div className={styles.content}>
         {currentStep > 0 && (
-          <button onClick={handleBack} className={styles.backButton}>
+          <button 
+            onClick={handleBackClick} 
+            className={`${styles.backButton} ${isBackDisabled ? styles.disabled : ""}`}
+            disabled={isBackDisabled}
+          >
             <span className={styles.backArrow}>←</span>
             <span className={styles.backText}>Back</span>
           </button>

@@ -10,16 +10,16 @@ declare module '@web3-onboard/core' {
   
     export interface WalletState {
       label: string;
-      icon: string;
-      provider: any;
-      accounts: Array<{
+      icon?: string;
+      provider?: any;
+      accounts?: Array<{
         address: string;
         balance: {
           asset: string;
           value: string;
         };
       }>;
-      chains: Chain[];
+      chains?: Chain[];
       instance?: {
         [key: string]: any;
       };

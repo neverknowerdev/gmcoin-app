@@ -12,11 +12,15 @@ import { useConnectWallet } from "@web3-onboard/react";
 import { CURRENT_CHAIN } from "@/src/config";
 
 interface SendContractProps {
-  connectedWallet: { accounts: { address: string }[] } | null;
+  connectedWallet: { 
+    accounts: { address: string }[],
+    label?: string  
+  } | null;
   sendTransaction: () => Promise<void>;
   walletAddress: string;
   connect: () => Promise<void>;
   isFirstTimeUser?: boolean;
+  transactionStatus?: "idle" | "pending" | "sending" | "success" | "error";
 }
 
 const SendContract: React.FC<SendContractProps> = ({
@@ -25,13 +29,14 @@ const SendContract: React.FC<SendContractProps> = ({
   sendTransaction,
   connect,
   isFirstTimeUser = true, // Default to true if not specified
+  transactionStatus,
 }) => {
   const [wallet, setWallet] = useState(walletAddress);
   const [walletAdd, setWalletAdd] = useState(walletAddress);
-  const { getProvider } = useWeb3();
+  const { getProvider, getSigner } = useWeb3();
   const [showTooltip, setShowTooltip] = useState(false);
   const [modalState, setModalState] = useState<
-    "loading" | "error" | "success" | "wrongNetwork" | null
+    "loading" | "error" | "success" | "wrongNetwork" | "sending" | null
   >(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isWrongNetwork, setIsWrongNetwork] = useState(false);
@@ -117,7 +122,15 @@ const SendContract: React.FC<SendContractProps> = ({
 
     if (!isCorrectNetwork) {
       console.log("Wrong network, attempting to switch...");
+      // Show error message, but try to switch network immediately
       setModalState("wrongNetwork");
+      setErrorMessage(`Please switch to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`);
+      
+      // If we have an Ambire wallet, add instructions for manual network switch
+      if (connectedWallet?.label === 'Ambire') {
+        setErrorMessage(`For Ambire wallet: please switch to network ${CURRENT_CHAIN.label} manually in wallet settings.`);
+      }
+      
       return false;
     }
 
@@ -400,13 +413,122 @@ const SendContract: React.FC<SendContractProps> = ({
     }
   }, [connectedWallet]);
 
+  // React to transaction status changes
+  useEffect(() => {
+    if (transactionStatus === "error") {
+      setModalState("error");
+    } else if (transactionStatus === "success") {
+      setModalState("success");
+    } else if (transactionStatus === "pending" || transactionStatus === "sending") {
+      setModalState("loading");
+    }
+  }, [transactionStatus]);
+
+  // Error handling for transaction
+  const handleTransactionError = (error: any) => {
+    let errorMsg = getErrorMessage(error);
+    
+    // Check for user cancellation
+    if (
+      error.code === 4001 ||
+      error.message?.includes("user rejected") ||
+      error.message?.includes("User denied") ||
+      error.message?.includes("User rejected") ||
+      error.message?.includes("cancelled") ||
+      error.message?.includes("window closed") ||
+      error.message?.includes("user closed") ||
+      error.message?.includes("Transaction cancelled by user") ||
+      error.message?.includes("timed out") ||
+      error.message?.includes("timeout")
+    ) {
+      errorMsg = "User rejected action";
+      setErrorMessage(errorMsg);
+      setModalState("error");
+      console.error("💥 Transaction rejected by user:", errorMsg);
+      return;
+    }
+    
+    // Check for "wallet already linked" error
+    if (error.message?.includes("wallet already linked for that user")) {
+      console.log("✅ Wallet already linked for this user, redirecting to dashboard");
+      // Save completed verification information
+      localStorage.setItem("hasCompletedTwitterVerification", "true");
+      localStorage.setItem("userAuthenticated", "true");
+      // Redirect to dashboard
+      router.push("/");
+      return;
+    }
+    
+    // Display error
+    setErrorMessage(errorMsg);
+    setModalState("error");
+    console.error("💥 Transaction error:", errorMsg);
+  };
+
   const handleSendTransaction = async () => {
     try {
+      // Check if transaction is already in progress
+      if (transactionStatus === "pending" || transactionStatus === "sending") {
+        console.log("⚠️ Transaction already in progress, skipping");
+        return;
+      }
+      
       setModalState("loading");
 
       // Check network before sending transaction
       const networkCorrect = await ensureCorrectNetwork();
       if (!networkCorrect) return;
+
+      // Additional check for Ambire wallet
+      if (connectedWallet?.label === 'Ambire') {
+        console.log("Using Ambire wallet, using API relay to bypass limitations");
+        
+        // Force use of API relay for Ambire due to wallet limitations
+        try {
+          const provider = getProvider();
+          
+          if (!provider) {
+            throw new Error("Failed to get provider");
+          }
+          
+          // Always use getSigner for Ambire to ensure we have the most recent provider state
+          const signer = await provider.getSigner().catch(error => {
+            console.error("Error getting signer:", error);
+            throw new Error("Failed to get signer from provider");
+          });
+          
+          if (!signer) {
+            throw new Error("Failed to get signer");
+          }
+          
+          const address = await signer.getAddress().catch(error => {
+            console.error("Error getting address:", error);
+            throw new Error("Failed to get address from signer");
+          });
+          
+          const accessToken = sessionStorage.getItem("accessToken");
+          
+          // Add delay before opening signature window
+          setTimeout(async () => {
+            try {
+              // Show user waiting for signature indicator
+              setModalState("loading");
+              
+              // Call function that handles the API call
+              await sendTransaction();
+            } catch (delayedError) {
+              console.error("Error after delay:", delayedError);
+              handleTransactionError(delayedError);
+            }
+          }, 1000); // Increase timeout to 1000ms for better stability
+          
+          return; // End execution of the main function
+        } catch (setupError) {
+          console.error("Error setting up transaction for Ambire:", setupError);
+          handleTransactionError(setupError);
+          return;
+        }
+      }
 
       // Add a timeout to detect if the transaction is taking too long
       // This helps catch cases when a user closes the wallet window without rejecting
@@ -422,7 +544,7 @@ const SendContract: React.FC<SendContractProps> = ({
 
             // Save verification status only after successful transaction
             localStorage.setItem("hasCompletedTwitterVerification", "true");
-            setModalState("success");
+            // Modal state is now handled by the useEffect monitoring transactionStatus
           } catch (txError) {
             // Pass any errors up to the outer catch block
             throw txError;
@@ -443,42 +565,8 @@ const SendContract: React.FC<SendContractProps> = ({
         }),
       ]);
     } catch (error: any) {
-      console.error("Transaction error:", error);
-
-      // Check for all possible user rejection scenarios, incl  uding timeout
-      if (
-        error.code === 4001 ||
-        error.message?.includes("user rejected") ||
-        error.message?.includes("User denied") ||
-        error.message?.includes("User rejected") ||
-        error.message?.includes("cancelled") ||
-        error.message?.includes("user closed") ||
-        error.message?.includes("window closed") ||
-        error.message?.includes("Transaction cancelled by user") ||
-        error.message?.includes("timed out") ||
-        error.message?.includes("timeout")
-      ) {
-        // Either show error modal or just close the modal
-        setErrorMessage("Transaction cancelled");
-        setModalState("error");
-        return;
-      }
-
-      // Check for "wallet already linked" error
-      if (error.message?.includes("wallet already linked for that user")) {
-        console.log("✅ Wallet already linked for this user, redirecting to dashboard");
-        // Save completed verification information
-        localStorage.setItem("hasCompletedTwitterVerification", "true");
-        localStorage.setItem("userAuthenticated", "true");
-        // Redirect to dashboard
-        router.push("/");
-        return;
-      }
-
-      // For other errors show error message
-      const errorMessage = getErrorMessage(error);
-      setErrorMessage(errorMessage);
-      setModalState("error");
+      // Process error using new method
+      handleTransactionError(error);
     }
   };
 
@@ -617,6 +705,35 @@ const SendContract: React.FC<SendContractProps> = ({
               </div>
             </div>
           )}
+          
+          {modalState === "sending" && (
+            <div className={styles.modalContent}>
+              <div className={styles.loadingContainer}>
+                <div className={styles.loadingText}>
+                  <span>S</span>
+                  <span>E</span>
+                  <span>N</span>
+                  <span>D</span>
+                  <span>I</span>
+                  <span>N</span>
+                  <span>G</span>
+                </div>
+                <div className={styles.loadingText}>
+                  <span>T</span>
+                  <span>R</span>
+                  <span>A</span>
+                  <span>N</span>
+                  <span>S</span>
+                  <span>A</span>
+                  <span>C</span>
+                  <span>T</span>
+                  <span>I</span>
+                  <span>O</span>
+                  <span>N</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {modalState === "wrongNetwork" && (
             <div className={styles.modalContent}>
@@ -641,14 +758,14 @@ const SendContract: React.FC<SendContractProps> = ({
                   className={styles.sadEmoji}
                 />
                 <h3 className={styles.errorTitle}>
-                  {errorMessage === "Transaction cancelled"
-                    ? "Transaction Cancelled"
+                  {errorMessage === "User rejected action"
+                    ? "Transaction Rejected"
                     : "Transaction Failed"}
                 </h3>
                 <p className={styles.errorMessage}>
-                  {errorMessage === "Transaction cancelled"
-                    ? "You cancelled the transaction. Would you like to try again?"
-                    : errorMessage}
+                  {errorMessage === "User rejected action"
+                    ? "You rejected the transaction. Would you like to try again?"
+                    : errorMessage || "An error occurred during the transaction. Please try again."}
                 </p>
               </div>
               <button

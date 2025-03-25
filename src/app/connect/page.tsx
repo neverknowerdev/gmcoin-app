@@ -28,9 +28,12 @@ export default function Home() {
   const [isCheckingStorage, setIsCheckingStorage] = useState(true);
   const [isFirstTimeUser, setIsFirstTimeUser] = useState(true);
   const [transactionStatus, setTransactionStatus] = useState<
-    "idle" | "pending" | "success" | "error"
+    "idle" | "pending" | "success" | "error" | "sending"
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isSignatureRequested, setIsSignatureRequested] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [blockBackActions, setBlockBackActions] = useState(false);
   const {
     connectedWallet,
     connect,
@@ -81,7 +84,7 @@ export default function Home() {
   }, [connectedWallet, currentStep, isCheckingStorage]);
 
   useEffect(() => {
-    if (connectedWallet?.accounts[0]?.address) {
+    if (connectedWallet && connectedWallet.accounts?.[0]?.address) {
       updateWalletInfo(connectedWallet.accounts[0].address);
     }
   }, [connectedWallet, updateWalletInfo]);
@@ -197,16 +200,11 @@ export default function Home() {
       return;
     }
 
-
-    // TEST ERROR
-    // console.log("Generating test error for debugging...");
-    // const testError = new Error("No many");
-    // testError.message = "Some error";
-    // console.error("❌ Test Error:", testError);
-    // setErrorMessage(getErrorMessage(testError));
-    // setTransactionStatus("error");
-    // throw testError;
-
+    // Check if signature process is already in progress
+    if (isSignatureRequested) {
+      console.log("⚠️ Signature request already in progress, skipping");
+      return;
+    }
 
     const encryptedAccessToken = sessionStorage.getItem(STORAGE_KEYS.ENCRYPTED_ACCESS_TOKEN);
     const accessToken = sessionStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
@@ -245,8 +243,70 @@ export default function Home() {
       const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
       const address = await signer.getAddress();
-      const balance = await browserProvider.getBalance(address);
-      console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
+      let balance = BigInt(0);
+      
+      try {
+        // Check wallet type
+        const isAmbireWallet = connectedWallet?.label === 'Ambire';
+        
+        if (isAmbireWallet) {
+          console.log("Using alternative balance retrieval method for Ambire");
+          // For Ambire we use a different way to get balance
+          try {
+            // First try Blockscout API
+            const response = await fetch(`https://base-sepolia.blockscout.com/api/v2/addresses/${address}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data && data.coin_balance) {
+                // Convert balance from string to BigInt
+                balance = ethers.parseEther(data.coin_balance);
+                console.log(`Ambire wallet balance: ${ethers.formatEther(balance)} ETH`);
+              } else {
+                // If balance not available in API response
+                console.log("Balance not available in API response, proceeding with zero balance");
+                balance = BigInt(0);
+              }
+            } else {
+              // If API response is not OK
+              console.log("Blockscout API response not OK, trying fallback method");
+              
+              // Try using provider as fallback
+              try {
+                balance = await browserProvider.getBalance(address);
+                console.log(`Fallback balance retrieval successful: ${ethers.formatEther(balance)} ETH`);
+              } catch (fallbackError) {
+                console.warn("Fallback balance retrieval also failed, continuing with zero balance");
+                console.error("Fallback error:", fallbackError);
+                balance = BigInt(0);
+              }
+            }
+          } catch (apiError) {
+            console.error("Error in balance retrieval for Ambire:", apiError);
+            // If all balance retrieval methods failed, continue with API relay
+            console.log("All balance retrieval methods failed, continuing with API relay");
+            await handleApiRelay(accessToken, signer, address);
+            return;
+          }
+        } else {
+          // For regular wallets use the standard method
+          try {
+            balance = await browserProvider.getBalance(address);
+            console.log(`💰 User balance: ${ethers.formatEther(balance)} ETH`);
+          } catch (standardBalanceError) {
+            console.error("❌ Error getting balance with standard method:", standardBalanceError);
+            
+            // For any wallet with balance retrieval issues, use API relay
+            console.log("Balance retrieval failed, continuing with API relay");
+            await handleApiRelay(accessToken, signer, address);
+            return;
+          }
+        }
+      } catch (balanceError) {
+        console.error("❌ Error in balance retrieval flow:", balanceError);
+        // If balance retrieval failed at any point, use API relay
+        await handleApiRelay(accessToken, signer, address);
+        return;
+      }
 
       // Check if we have the required data for the contract call
       if (!encryptedAccessToken || !twitterUserId) {
@@ -294,6 +354,8 @@ export default function Home() {
         console.error("❌ Transaction Error:", gasError);
         setErrorMessage(getErrorMessage(gasError as any));
         setTransactionStatus("error");
+        // Reset signature flag in case of error
+        setIsSignatureRequested(false);
         throw gasError;
       }
 
@@ -327,6 +389,8 @@ export default function Home() {
             console.error("❌ Transaction Error:", txError);
             setErrorMessage(getErrorMessage(txError));
             setTransactionStatus("error");
+            // Reset signature flag in case of error
+            setIsSignatureRequested(false);
             throw txError;
           }
 
@@ -345,6 +409,8 @@ export default function Home() {
           console.error("❌ Transaction error:", txError);
           setErrorMessage(getErrorMessage(txError));
           setTransactionStatus("error");
+          // Reset signature flag in case of error
+          setIsSignatureRequested(false);
           throw txError;
         }
       } else {
@@ -356,6 +422,8 @@ export default function Home() {
       console.error("❌ Transaction Error:", error);
       setErrorMessage(getErrorMessage(error));
       setTransactionStatus("error");
+      // Reset signature flag in case of error
+      setIsSignatureRequested(false);
       throw error;
     }
   };
@@ -368,11 +436,31 @@ export default function Home() {
   ) => {
     console.log("🔹 Using API relay...");
     try {
+      // Check if signature has already been requested
+      if (isSignatureRequested) {
+        console.log("⚠️ Signature request already in progress, skipping");
+        return;
+      }
+      
+      // Set flag indicating signature has been requested
+      setIsSignatureRequested(true);
+      
       // Force signature even when using API relay
       const signature = await signer.signMessage(
         "I confirm that I want to verify my Twitter account with GMCoin"
-      );
+      ).catch((error) => {
+        // Reset signature flag if user cancelled the signing
+        setIsSignatureRequested(false);
+        console.log("❌ Signature request cancelled by user");
+        setTransactionStatus("error");
+        setErrorMessage("User rejected action");
+        throw error;
+      });
+      
       console.log("Signature received:", signature);
+      
+      // Change status to sending after signature is received
+      setTransactionStatus("sending");
 
       const response = await fetch(API_URL, {
         method: "POST",
@@ -382,10 +470,26 @@ export default function Home() {
           signature,
           wallet: address,
         }),
+      }).catch((error) => {
+        // Reset signature flag on network error
+        setIsSignatureRequested(false);
+        console.error("❌ Network error:", error);
+        throw error;
       });
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        // Parse server error message if available
+        let errorMessage;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || `API Error: ${response.status} ${response.statusText}`;
+        } catch (e) {
+          errorMessage = `API Error: ${response.status} ${response.statusText}`;
+        }
+        
+        // Reset signature flag in case of error
+        setIsSignatureRequested(false);
+        throw new Error(errorMessage);
       }
 
       const txReceipt = await response.json();
@@ -406,17 +510,23 @@ export default function Home() {
         apiError.message?.includes("window closed") ||
         apiError.message?.includes("user closed")
       ) {
+        // Reset signature flag if user cancelled the signing
+        setIsSignatureRequested(false);
         // Return cancellation error to be handled in SendContract
-        throw new Error("Transaction cancelled by user");
+        throw new Error("User rejected action");
       }
 
       // If the relay service returns 500, provide a user-friendly message
       if (apiError.message?.includes("500")) {
+        // Reset signature flag in case of server error
+        setIsSignatureRequested(false);
         throw new Error(
           "Service temporarily unavailable. Please try again later."
         );
       }
 
+      // Reset signature flag in case of any other error
+      setIsSignatureRequested(false);
       throw new Error(`Relayer service error: ${apiError.message}`);
     }
   };
@@ -433,13 +543,16 @@ export default function Home() {
     setTransactionStatus("success");
     sessionStorage.removeItem(STORAGE_KEYS.CODE);
     sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
+    
+    // Reset signature flag after successful completion
+    setIsSignatureRequested(false);
   };
 
   // Optional background event listener that doesn't block UI flow
   const setupEventListener = () => {
     try {
       // Save wallet address for event checking
-      if (connectedWallet?.accounts[0]?.address) {
+      if (connectedWallet && connectedWallet.accounts?.[0]?.address) {
         localStorage.setItem(
           STORAGE_KEYS.WALLET_ADDRESS,
           connectedWallet.accounts[0].address
@@ -508,19 +621,54 @@ export default function Home() {
   };
 
   const handleBack = async () => {
-    if (currentStep === 2) {
-      setCurrentStep(1);
-      setTransactionStatus("idle");
-      sessionStorage.removeItem(STORAGE_KEYS.CODE);
-      sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
-      setIsTwitterConnected(false);
-    } else if (currentStep === 1) {
-      setCurrentStep(0);
-      await disconnect();
-    } else if (currentStep === 0) {
-      setIsTwitterConnected(false);
-      sessionStorage.removeItem(STORAGE_KEYS.CODE);
-      sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
+    // If back action is blocked, do nothing
+    if (blockBackActions || loading) {
+      console.log("Back action is blocked or loading is in progress");
+      return;
+    }
+
+    // Set block and loading
+    setLoading(true);
+    setBlockBackActions(true);
+
+    try {
+      if (currentStep === 2) {
+        // Immediately change interface without waiting for async operations to complete
+        setCurrentStep(1);
+        setTransactionStatus("idle");
+        sessionStorage.removeItem(STORAGE_KEYS.CODE);
+        sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
+        setIsTwitterConnected(false);
+        
+        // Unblock back actions after a short delay
+        setTimeout(() => {
+          setBlockBackActions(false);
+          setLoading(false);
+        }, 500);
+      } else if (currentStep === 1) {
+        // First change UI
+        setCurrentStep(0);
+        
+        // Then perform async disconnection
+        await disconnect();
+        
+        // Remove block only after disconnection is complete
+        setBlockBackActions(false);
+        setLoading(false);
+      } else if (currentStep === 0) {
+        setIsTwitterConnected(false);
+        sessionStorage.removeItem(STORAGE_KEYS.CODE);
+        sessionStorage.removeItem(STORAGE_KEYS.VERIFIER);
+        
+        // Remove block for all cases except wallet disconnection
+        setBlockBackActions(false);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error in handleBack:", error);
+      // Always unblock in case of error
+      setBlockBackActions(false);
+      setLoading(false);
     }
   };
 
@@ -551,11 +699,12 @@ export default function Home() {
       {isAuthorized ? (
         <div>
           <SendContract
-            connectedWallet={connectedWallet}
-            walletAddress={connectedWallet?.accounts[0]?.address || ""}
+            connectedWallet={connectedWallet as any}
+            walletAddress={connectedWallet?.accounts?.[0]?.address || ""}
             sendTransaction={sendTransaction}
             connect={connect}
             isFirstTimeUser={false}
+            transactionStatus={transactionStatus}
           />
         </div>
       ) : (
@@ -576,11 +725,12 @@ export default function Home() {
 
           {isTwitterConnected && currentStep === 2 && (
             <SendContract
-              connectedWallet={connectedWallet}
-              walletAddress={connectedWallet?.accounts[0]?.address || ""}
+              connectedWallet={connectedWallet as any}
+              walletAddress={connectedWallet?.accounts?.[0]?.address || ""}
               sendTransaction={sendTransaction}
               connect={connect}
               isFirstTimeUser={true}
+              transactionStatus={transactionStatus}
             />
           )}
         </div>

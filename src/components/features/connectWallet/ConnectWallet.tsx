@@ -40,7 +40,7 @@ const ConnectWallet: React.FC<AuthComponentProps> = ({
             <span className={styles.buttonText}>CONNECT WALLET</span>
           </button>
         </div>
-        <span className={styles.withText}>OR</span>
+        {/* <span className={styles.withText}>OR</span>
         <div className={styles.buttonContainer}>
           <button
             className={`${styles.createButton} ${styles.buttonAnimation}`}
@@ -49,7 +49,7 @@ const ConnectWallet: React.FC<AuthComponentProps> = ({
             <ButtonBackground />
             <span className={styles.buttonText}>CREATE WALLET</span>
           </button>
-        </div>
+        </div> */}
       </div>
 
       <div className={styles.decorations}>
