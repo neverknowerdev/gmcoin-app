@@ -362,7 +362,10 @@ export default function Home() {
       // Check if user has enough balance for transaction
       if (balance > totalGasCost * 2n) {
         console.log("🔹 Sending contract transaction...");
+        setTransactionStatus("sending");
         console.log("TwitterUserId:", twitterUserId);
+
+
 
         try {
           // Call requestTwitterVerification with the required parameters
@@ -428,52 +431,100 @@ export default function Home() {
     }
   };
 
-  // Helper function to handle API relay path
+  // Universal API relay handling function for all wallets
   const handleApiRelay = async (
     accessToken: string | null,
     signer: ethers.Signer,
     address: string
   ) => {
-    console.log("🔹 Using API relay...");
+    console.log(`🔹 Using API relay for wallet ${connectedWallet?.label || 'Unknown'}`);
+    
+    // Check previous failed API relay attempts
+    const hasRelayIssues = localStorage.getItem(`${connectedWallet?.label || 'Unknown'}_relay_failed`) === 'true';
+    
+    if (hasRelayIssues) {
+      console.warn(`Wallet ${connectedWallet?.label || 'Unknown'} has previous API relay issues`);
+    }
+
     try {
-      // Check if signature has already been requested
+      // Check if signing is already in progress
       if (isSignatureRequested) {
-        console.log("⚠️ Signature request already in progress, skipping");
+        console.log("⚠️ Signing is already in progress, skipping");
         return;
       }
       
-      // Set flag indicating signature has been requested
+      // Set signing flag
       setIsSignatureRequested(true);
       
-      // Force signature even when using API relay
+      // Force signature
       const signature = await signer.signMessage(
         "I confirm that I want to verify my Twitter account with GMCoin"
       ).catch((error) => {
-        // Reset signature flag if user cancelled the signing
+        // Reset flag if user cancels
         setIsSignatureRequested(false);
-        console.log("❌ Signature request cancelled by user");
+        console.log("❌ Signing cancelled by user");
         setTransactionStatus("error");
         setErrorMessage("User rejected action");
         throw error;
       });
       
-      console.log("Signature received:", signature);
+      console.log(`Signature received for wallet ${connectedWallet?.label || 'Unknown'}:`, signature);
       
-      // Change status to sending after signature is received
+      // Change status to sending immediately after signature is received
       setTransactionStatus("sending");
 
-      const response = await fetch(API_URL, {
+      // Function to request with timeout and enhanced error handling
+      const fetchWithEnhancedHandling = async (url: string, options: RequestInit, timeout = 15000) => {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        
+        try {
+          const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+              ...options.headers,
+              'X-Wallet-Type': connectedWallet?.label || 'Unknown',
+              'X-Retry-Count': hasRelayIssues ? '1' : '0'
+            }
+          });
+          
+          clearTimeout(id);
+          return response;
+        } catch (error) {
+          clearTimeout(id);
+          throw error;
+        }
+      };
+
+      // Make API request after status is already set to "sending"
+      const response = await fetchWithEnhancedHandling(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
           accessToken,
           signature,
           wallet: address,
+          // Additional metadata for debugging
+          metadata: {
+            timestamp: new Date().toISOString(),
+            walletType: connectedWallet?.label || 'Unknown',
+            userAgent: navigator.userAgent,
+            platform: navigator.platform
+          }
         }),
       }).catch((error) => {
-        // Reset signature flag on network error
+        // Reset flag on network error
         setIsSignatureRequested(false);
-        console.error("❌ Network error:", error);
+        console.error(`❌ Network error for wallet ${connectedWallet?.label || 'Unknown'}:`, error);
+        
+        // Mark wallet as problematic
+        if (connectedWallet?.label) {
+          localStorage.setItem(`${connectedWallet.label}_relay_failed`, 'true');
+        }
+        
         throw error;
       });
 

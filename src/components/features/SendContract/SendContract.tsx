@@ -54,6 +54,8 @@ const SendContract: React.FC<SendContractProps> = ({
 
   // Add flag to track completed authorization requests
   const [authAttempted, setAuthAttempted] = useState(false);
+  
+
 
   // Check if user is a returning verified user
   useEffect(() => {
@@ -63,6 +65,7 @@ const SendContract: React.FC<SendContractProps> = ({
     const hasCompletedTx = localStorage.getItem(
       "hasCompletedTwitterVerification"
     );
+    
 
     // Only auto-show success modal for returning users who have completed verification
     if (
@@ -415,15 +418,16 @@ const SendContract: React.FC<SendContractProps> = ({
 
   // React to transaction status changes
   useEffect(() => {
-    if (transactionStatus === "error") {
-      setModalState("error");
+    if (transactionStatus === "sending") {
+      setModalState("sending");
     } else if (transactionStatus === "success") {
       setModalState("success");
-    } else if (transactionStatus === "pending" || transactionStatus === "sending") {
+    } else if (transactionStatus === "error") {
+      setModalState("error");
+    } else if (transactionStatus === "pending") {
       setModalState("loading");
     }
   }, [transactionStatus]);
-
   // Error handling for transaction
   const handleTransactionError = (error: any) => {
     let errorMsg = getErrorMessage(error);
@@ -659,23 +663,6 @@ const SendContract: React.FC<SendContractProps> = ({
       </div>
 
       {modalState && (
-        // <Modal onClose={() => setModalState(null)}>
-        //   {modalState === "loading" && (
-        //     <div className={styles.modalContent}>
-        //       <p>Transaction in progress...</p>
-        //       <div className={styles.loadingContainer}>
-        //         <div className={styles.loadingText}>
-        //           <span>S</span>
-        //           <span>E</span>
-        //           <span>N</span>
-        //           <span>D</span>
-        //           <span>I</span>
-        //           <span>N</span>
-        //           <span>G</span>
-        //         </div>
-        //       </div>
-        //     </div>
-        //   )}
         <Modal onClose={() => setModalState(null)}>
           {modalState === "loading" && (
             <div className={styles.modalContent}>
@@ -701,6 +688,11 @@ const SendContract: React.FC<SendContractProps> = ({
                   <span>I</span>
                   <span>R</span>
                   <span>M</span>
+                  <span>A</span>
+                  <span>T</span>
+                  <span>I</span>
+                  <span>O</span>
+                  <span>N</span>
                 </div>
               </div>
             </div>
