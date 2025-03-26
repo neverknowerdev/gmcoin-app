@@ -1,229 +1,268 @@
 import { ethers } from "ethers";
 import { CURRENT_CHAIN } from "@/src/config";
+import { switchToBase } from "@/src/hooks/useWeb3";
 
 // Function to show network switching modal
-export const showNetworkSwitchModal = (providerObj: any) => {
+export const showNetworkSwitchModal = (wallet: any) => {
+  const isAmbire = wallet?.label === "Ambire";
+  console.log("Showing network modal. Wallet:", wallet?.label);
+  console.log("Target network:", CURRENT_CHAIN.label, CURRENT_CHAIN.id);
+
   // Create styled modal window
-  const modalContainer = document.createElement('div');
-  modalContainer.style.position = 'fixed';
-  modalContainer.style.top = '0';
-  modalContainer.style.left = '0';
-  modalContainer.style.width = '100%';
-  modalContainer.style.height = '100%';
-  modalContainer.style.backgroundColor = 'rgba(0,0,0,0.5)';
-  modalContainer.style.display = 'flex';
-  modalContainer.style.justifyContent = 'center';
-  modalContainer.style.alignItems = 'center';
-  modalContainer.style.zIndex = '9999';
+  const modalContainer = document.createElement("div");
+  modalContainer.style.position = "fixed";
+  modalContainer.style.top = "0";
+  modalContainer.style.left = "0";
+  modalContainer.style.width = "100%";
+  modalContainer.style.height = "100%";
+  modalContainer.style.backgroundColor = "rgba(0,0,0,0.5)";
+  modalContainer.style.display = "flex";
+  modalContainer.style.justifyContent = "center";
+  modalContainer.style.alignItems = "center";
+  modalContainer.style.zIndex = "9999";
 
-  const modalContent = document.createElement('div');
-  modalContent.style.backgroundColor = 'white';
-  modalContent.style.borderRadius = '16px';
-  modalContent.style.padding = '24px';
-  modalContent.style.width = '90%';
-  modalContent.style.maxWidth = '400px';
-  modalContent.style.textAlign = 'center';
-  modalContent.style.fontFamily = 'sans-serif';
+  const modalContent = document.createElement("div");
+  modalContent.style.backgroundColor = "white";
+  modalContent.style.borderRadius = "16px";
+  modalContent.style.padding = "24px";
+  modalContent.style.width = "90%";
+  modalContent.style.maxWidth = "400px";
+  modalContent.style.textAlign = "center";
+  modalContent.style.fontFamily = "sans-serif";
 
-  const header = document.createElement('h2');
-  header.textContent = `Please switch to network Base (${CURRENT_CHAIN.id})`;
-  header.style.marginBottom = '20px';
-  header.style.color = '#111';
-  header.style.fontSize = '18px';
+  const header = document.createElement("h2");
+  header.textContent = isAmbire
+    ? `Please switch to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`
+    : `Please switch to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`;
+  header.style.marginBottom = "20px";
+  header.style.color = "#111";
+  header.style.fontSize = "18px";
 
-  // Add info about current network
-  const getCurrentNetwork = async () => {
-    try {
-      let provider;
-      if (providerObj && providerObj.provider) {
-        provider = new ethers.BrowserProvider(providerObj.provider);
-      } else if (providerObj) {
-        provider = providerObj;
-      } else if (window.ethereum) {
-        provider = new ethers.BrowserProvider(window.ethereum);
-      }
-
-      if (provider) {
-        const chainIdHex = await provider.send('eth_chainId', []);
-        const chainId = parseInt(chainIdHex, 16);
-        return chainId;
-      }
-    } catch (e) {
-      console.error("Error getting current chain ID:", e);
-    }
-    return "Unknown";
-  };
-
-  const networkInfo = document.createElement('p');
-  networkInfo.style.marginBottom = '15px';
-  networkInfo.style.color = '#555';
-  networkInfo.style.fontSize = '14px';
-  networkInfo.textContent = "Checking current network...";
-
-  // Update text with current network info
-  getCurrentNetwork().then(currentChainId => {
-    if (currentChainId && currentChainId !== "Unknown") {
-      networkInfo.innerHTML = `You are currently connected to network with ID: <b>${currentChainId}</b><br>
-      Please switch to <b>${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})</b> to continue.`;
-    } else {
-      networkInfo.textContent = `Please connect to ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id}) network.`;
-    }
-  });
-
-  // Add browser detection info and help text
-  const userAgent = navigator.userAgent;
-  const isFirefox = userAgent.indexOf("Firefox") > -1;
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-  
-  const helpText = document.createElement('p');
-  helpText.style.fontSize = '12px';
-  helpText.style.color = '#777';
-  helpText.style.marginBottom = '20px';
-  
-  if (isFirefox) {
-    helpText.innerHTML = "Using Firefox? You might need to manually add the network in your wallet.<br>Please check your wallet settings.";
-  } else if (isMobile) {
-    helpText.innerHTML = "On mobile devices, you may need to open your wallet app separately to switch networks.";
+  // Add special instructions for Ambire wallet
+  let instructions = document.createElement("p");
+  if (isAmbire) {
+    instructions.innerHTML = `
+      <strong>For Ambire Wallet:</strong><br>
+      1. Click the button below to try automatic switching<br>
+      2. If that doesn't work, open your Ambire wallet<br>
+      3. Go to Settings > Networks<br>
+      4. Select ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})<br>
+      5. Return to this page and refresh
+    `;
   } else {
-    helpText.innerHTML = "If automatic switching doesn't work, please open your wallet extension and switch networks manually.";
+    instructions.textContent = `Click the button below to switch networks`;
   }
+  instructions.style.marginBottom = "20px";
+  instructions.style.color = "#333";
+  instructions.style.fontSize = "14px";
+  instructions.style.lineHeight = "1.5";
 
-  const button = document.createElement('button');
-  button.textContent = 'SWITCH NETWORK';
-  button.style.backgroundColor = '#00cc00';
-  button.style.color = 'white';
-  button.style.border = 'none';
-  button.style.borderRadius = '30px';
-  button.style.padding = '12px 24px';
-  button.style.fontSize = '16px';
-  button.style.fontWeight = 'bold';
-  button.style.cursor = 'pointer';
-  button.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+  // Create button for switching networks
+  const button = document.createElement("button");
+  button.textContent = "SWITCH NETWORK";
+  button.style.backgroundColor = "#10b981";
+  button.style.color = "white";
+  button.style.border = "none";
+  button.style.borderRadius = "50px";
+  button.style.padding = "12px 24px";
+  button.style.fontSize = "16px";
+  button.style.fontWeight = "bold";
+  button.style.cursor = "pointer";
+  button.style.marginBottom = "16px";
+  button.style.width = "100%";
+  button.style.maxWidth = "250px";
+  button.style.boxShadow = "0 4px 6px rgba(0, 0, 0, 0.1)";
 
-  const closeButton = document.createElement('button');
-  closeButton.textContent = 'CLOSE';
-  closeButton.style.backgroundColor = 'transparent';
-  closeButton.style.color = '#666';
-  closeButton.style.border = 'none';
-  closeButton.style.borderRadius = '30px';
-  closeButton.style.padding = '12px 24px';
-  closeButton.style.fontSize = '14px';
-  closeButton.style.marginTop = '12px';
-  closeButton.style.cursor = 'pointer';
+  // Close button
+  const closeButton = document.createElement("button");
+  closeButton.textContent = "CLOSE";
+  closeButton.style.backgroundColor = "transparent";
+  closeButton.style.color = "#666";
+  closeButton.style.border = "none";
+  closeButton.style.padding = "8px 16px";
+  closeButton.style.fontSize = "14px";
+  closeButton.style.cursor = "pointer";
+  closeButton.style.display = "block";
+  closeButton.style.marginLeft = "auto";
+  closeButton.style.marginRight = "auto";
 
-  // Add status text
-  const statusText = document.createElement('p');
-  statusText.style.fontSize = '14px';
-  statusText.style.color = '#555';
-  statusText.style.margin = '15px 0';
-  statusText.style.minHeight = '20px';
-
-  // Add actions
-  button.addEventListener('click', async () => {
+  // Handle click on switch button
+  button.addEventListener("click", async () => {
     try {
-      statusText.textContent = "Attempting to switch network...";
-      statusText.style.color = '#0066cc';
-      
-      if (providerObj) {
-        let provider;
-        
-        // Check type of provided provider
-        if (providerObj.provider) {
-          // If wallet object is passed
-          provider = new ethers.BrowserProvider(providerObj.provider);
-        } else {
-          // If provider is passed directly
-          provider = providerObj;
-        }
-        
-        // First add the network
-        await provider.send('wallet_addEthereumChain', [{
-          chainId: CURRENT_CHAIN.hexId,
-          chainName: CURRENT_CHAIN.label,
-          nativeCurrency: {
-            name: CURRENT_CHAIN.token,
-            symbol: CURRENT_CHAIN.token,
-            decimals: 18
-          },
-          rpcUrls: [CURRENT_CHAIN.rpcUrl],
-          blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl]
-        }]).catch((e: Error) => {
-          console.log("Error adding chain in modal, continuing to switch:", e);
-        });
-        
-        // Then switch to it
-        await provider.send('wallet_switchEthereumChain', [{ 
-          chainId: CURRENT_CHAIN.hexId 
-        }]);
-        
-        // Verify the switch was successful
-        setTimeout(async () => {
-          try {
-            const newChainId = await provider.send('eth_chainId', []);
-            const newNumericChainId = parseInt(newChainId, 16);
-            
-            if (newNumericChainId === CURRENT_CHAIN.id) {
-              statusText.textContent = "✅ Successfully switched network!";
-              statusText.style.color = '#00cc00';
-              setTimeout(() => {
-                document.body.removeChild(modalContainer);
-                window.location.reload(); // Reload page to refresh UI state
-              }, 1000);
-            } else {
-              statusText.textContent = "⚠️ Network switch not confirmed. Please check your wallet.";
-              statusText.style.color = '#ff6600';
+      console.log("Switch button clicked");
+      // Visual confirmation of button press
+      button.textContent = "SWITCHING...";
+      button.style.backgroundColor = "#888";
+
+      if (isAmbire) {
+        console.log("Using direct method for Ambire wallet");
+        // For Ambire, try the direct method first
+        try {
+          console.log("Calling switchToBase function");
+          await switchToBase();
+          console.log("Direct switchToBase called successfully");
+
+          // Show status to the user
+          button.textContent = "SUCCESS!";
+          button.style.backgroundColor = "#22c55e";
+
+          // Create network check after a short delay
+          setTimeout(async () => {
+            try {
+              if (window.ethereum) {
+                const chainId = await window.ethereum.request({
+                  method: "eth_chainId",
+                });
+                console.log(
+                  `Current chain after switch: ${chainId}, expected: ${CURRENT_CHAIN.hexId}`
+                );
+
+                if (chainId === CURRENT_CHAIN.hexId) {
+                  console.log("Network switch confirmed");
+                  // Close modal and reload after confirmation
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 500);
+                } else {
+                  console.log(
+                    "Network switch not confirmed, showing manual instructions"
+                  );
+                  // If network didn't switch, show instructions
+                  button.textContent = "SWITCH MANUALLY";
+                  button.style.backgroundColor = "#f97316";
+
+                  // Add more detailed instructions
+                  instructions.innerHTML = `
+                    <strong>Automatic switching failed. Please follow these steps:</strong><br>
+                    1. Open your Ambire wallet<br>
+                    2. Go to Settings → Networks<br>
+                    3. Select ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})<br>
+                    4. Return to this page and refresh browser
+                  `;
+                }
+              }
+            } catch (verifyError) {
+              console.error("Error verifying network switch:", verifyError);
             }
-          } catch (e) {
-            statusText.textContent = "Error verifying network switch.";
-            statusText.style.color = '#cc0000';
+          }, 1500);
+        } catch (error) {
+          console.error("Error with direct switchToBase:", error);
+
+          // Show error in the interface
+          button.textContent = "FAILED TO SWITCH";
+          button.style.backgroundColor = "#ef4444";
+
+          setTimeout(() => {
+            alert(
+              "Couldn't switch automatically. Please switch manually in your Ambire wallet settings."
+            );
+
+            // Update instructions
+            instructions.innerHTML = `
+              <strong>For Ambire Wallet (manual mode):</strong><br>
+              1. Open your Ambire wallet<br>
+              2. Go to Settings → Networks<br>
+              3. Select ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})<br>
+              4. Return to this page and refresh browser
+            `;
+
+            button.textContent = "SWITCH MANUALLY";
+            button.style.backgroundColor = "#f97316";
+          }, 500);
+        }
+      } else {
+        // For other wallets use provider from wallet
+        const provider = new ethers.BrowserProvider(wallet.provider);
+
+        // Try to switch chain
+        try {
+          await provider.send("wallet_switchEthereumChain", [
+            {
+              chainId: CURRENT_CHAIN.hexId,
+            },
+          ]);
+          console.log("Network switch request sent");
+        } catch (switchError: any) {
+          console.error("Error switching chain:", switchError);
+
+          // If chain not added, try to add it
+          if (switchError.code === 4902) {
+            try {
+              await provider.send("wallet_addEthereumChain", [
+                {
+                  chainId: CURRENT_CHAIN.hexId,
+                  chainName: CURRENT_CHAIN.label,
+                  nativeCurrency: {
+                    name: CURRENT_CHAIN.token,
+                    symbol: CURRENT_CHAIN.token,
+                    decimals: 18,
+                  },
+                  rpcUrls: [CURRENT_CHAIN.rpcUrl],
+                  blockExplorerUrls: [CURRENT_CHAIN.blockExplorerUrl],
+                },
+              ]);
+
+              // Then try to switch again
+              await provider.send("wallet_switchEthereumChain", [
+                {
+                  chainId: CURRENT_CHAIN.hexId,
+                },
+              ]);
+            } catch (addError) {
+              console.error("Error adding chain:", addError);
+              alert(
+                "Failed to add network. Please try adding it manually in your wallet."
+              );
+            }
+          } else {
+            alert(
+              "Failed to switch network. Please try again or switch manually in your wallet."
+            );
           }
-        }, 1500);
+        }
       }
-    } catch (e) {
-      console.error("Error switching network from modal:", e);
-      statusText.textContent = "❌ Error switching network. Try manually in your wallet.";
-      statusText.style.color = '#cc0000';
+
+      // Close modal in any case
+      document.body.removeChild(modalContainer);
+    } catch (error) {
+      console.error("Error in switch button handler:", error);
     }
   });
 
-  closeButton.addEventListener('click', () => {
+  // Handle click on close button
+  closeButton.addEventListener("click", () => {
     document.body.removeChild(modalContainer);
   });
 
-  // Assemble and display modal window
+  // Append elements to modal
   modalContent.appendChild(header);
-  modalContent.appendChild(networkInfo);
-  modalContent.appendChild(helpText);
+  modalContent.appendChild(instructions);
   modalContent.appendChild(button);
-  modalContent.appendChild(statusText);
-  modalContent.appendChild(document.createElement('br'));
   modalContent.appendChild(closeButton);
   modalContainer.appendChild(modalContent);
+
+  // Add modal to body
   document.body.appendChild(modalContainer);
-  
-  // Add ability to close window when clicking on darkened background
-  modalContainer.addEventListener('click', (e) => {
-    if (e.target === modalContainer) {
-      document.body.removeChild(modalContainer);
-    }
-  });
 };
 
 // Function to check network and show modal window if needed
-export const checkAndSwitchNetwork = async (provider: any, requiredChainId: number) => {
+export const checkAndSwitchNetwork = async (
+  provider: any,
+  requiredChainId: number
+) => {
   try {
-    const chainId = await provider.send('eth_chainId', []);
+    const chainId = await provider.send("eth_chainId", []);
     const currentChainId = parseInt(chainId, 16);
-    
+
     if (currentChainId !== requiredChainId) {
       showNetworkSwitchModal(provider);
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error("Error checking network:", error);
     showNetworkSwitchModal(provider);
     return false;
   }
-}; 
+};
