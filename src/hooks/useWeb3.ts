@@ -109,7 +109,7 @@ export const useWeb3 = () => {
       ],
       appMetadata: {
         name: "GM",
-        icon: "https://i.ibb.co/8DgJBg1H/Ac-WFYz-Ul-400x400-5.jpg",
+        icon: "/image/wallet/sun-with-cup.webp",
         description: "GM ☀️ first tweet&mint coin",
         recommendedInjectedWallets: [
           { name: "MetaMask", url: "https://metamask.io" },
@@ -367,7 +367,7 @@ export const useWeb3 = () => {
       const ambireLoginSDK = new AmbireLoginSDK({
         dappName: "GM",
         dappIconPath:
-          "https://pbs.twimg.com/profile_images/1834344421984256000/AcWFYzUl_400x400.jpg",
+          "/image/wallet/sun-with-cup.webp",
         network: CURRENT_CHAIN.id,
       });
 
@@ -538,7 +538,7 @@ export const useWeb3 = () => {
         try {
           const ambireLoginSDK = new AmbireLoginSDK({
             dappName: "GM",
-            dappIconPath: "GM",
+            dappIconPath: "/image/wallet/sun-with-cup.webp",
           });
           ambireLoginSDK.openLogout();
         } catch (ambireError) {
