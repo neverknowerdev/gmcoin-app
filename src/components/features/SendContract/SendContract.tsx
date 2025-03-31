@@ -784,7 +784,7 @@ const SendContract: React.FC<SendContractProps> = ({
               <a
                 className={styles.twittButton}
                 href={encodeURI(
-                  'https://x.com/intent/tweet?text=Now I can get $GM for every "gm" tweet - awesome 🌀&via=gmcoin_meme'
+                  'https://x.com/intent/tweet?text=Now I can get $GM for every "gm" tweet - awesome 🌀&via=say_more_gm'
                 )}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -803,7 +803,7 @@ const SendContract: React.FC<SendContractProps> = ({
               </a>
               <a
                 className={styles.twittButton}
-                href="https://x.com/gmcoin_meme"
+                href="https://x.com/say_more_gm"
                 target="_blank"
                 rel="noopener noreferrer"
               >
