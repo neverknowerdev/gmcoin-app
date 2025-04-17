@@ -22,7 +22,7 @@ export const useTokenBalance = (walletAddress: string | null, signer: any) => {
             provider = resolvedSigner.provider;
           } else {
             if (typeof window !== 'undefined' && window.ethereum) {
-              provider = new ethers.BrowserProvider(window.ethereum);
+              provider = new ethers.providers.Web3Provider(window.ethereum as any);
             } else {
               throw new Error("Ethereum provider not found");
             }
@@ -31,7 +31,7 @@ export const useTokenBalance = (walletAddress: string | null, signer: any) => {
           provider = signer;
         } else {
           if (typeof window !== 'undefined' && window.ethereum) {
-            provider = new ethers.BrowserProvider(window.ethereum);
+            provider = new ethers.providers.Web3Provider(window.ethereum as any);
           } else {
             throw new Error("Ethereum provider not found in window");
           }
@@ -52,7 +52,7 @@ export const useTokenBalance = (walletAddress: string | null, signer: any) => {
       const decimals = await contract.decimals().catch(() => 18);
       // console.log("Decimals:", decimals);
       
-      const formattedBalance = ethers.formatUnits(rawBalance, decimals);
+      const formattedBalance = ethers.utils.formatUnits(rawBalance, decimals);
       // console.log("Formatted balance:", formattedBalance);
 
       setBalance(formattedBalance);

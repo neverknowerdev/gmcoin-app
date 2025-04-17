@@ -128,7 +128,6 @@ export const useWeb3 = () => {
   }, []);
   const getProvider = useCallback(() => {
     if (!connectedWallet?.provider) {
-      // console.error("No wallet connected");
       return null;
     }
 
@@ -144,13 +143,13 @@ export const useWeb3 = () => {
       }
 
       // For Ambire wallet use modified provider
-      if (connectedWallet.label === "Ambire") {
+      if (connectedWallet.label === 'Ambire') {
         console.log("Creating modified provider for Ambire");
 
-        // Create standard BrowserProvider
-        const baseProvider = new ethers.BrowserProvider(
+        // Create standard Web3Provider
+        const baseProvider = new ethers.providers.Web3Provider(
           connectedWallet.provider,
-          "any"
+          'any'
         );
 
         // Intercept calls to methods that may not be supported by Ambire
@@ -176,7 +175,7 @@ export const useWeb3 = () => {
                 if (response.ok) {
                   const data = await response.json();
                   if (data && data.coin_balance) {
-                    return ethers.parseEther(data.coin_balance);
+                    return ethers.utils.parseEther(data.coin_balance);
                   }
                 }
               } catch (apiError) {
@@ -185,24 +184,29 @@ export const useWeb3 = () => {
 
               // If all methods fail, return zero balance
               console.warn("Failed to get balance, returning 0");
-              return BigInt(0);
+              return ethers.BigNumber.from(0);
             }
           },
 
           // Add getSigner method for compatibility
-          getSigner: async () => {
-            return await baseProvider.getSigner();
+          getSigner: () => {
+            return baseProvider.getSigner();
           },
 
           // Add getFeeData method for compatibility
           getFeeData: async () => {
             try {
-              return await baseProvider.getFeeData();
+              const gasPrice = await baseProvider.getGasPrice();
+              return {
+                gasPrice,
+                maxFeePerGas: null,
+                maxPriorityFeePerGas: null,
+              };
             } catch (error) {
               console.error("Error calling getFeeData:", error);
               // Return default values if the method fails
               return {
-                gasPrice: BigInt(10000000000), // 10 gwei default
+                gasPrice: ethers.BigNumber.from(10000000000), // 10 gwei default
                 maxFeePerGas: null,
                 maxPriorityFeePerGas: null,
               };
@@ -262,10 +266,7 @@ export const useWeb3 = () => {
         // Add network event handler
         baseProvider.on(
           "network",
-          (
-            newNetwork: { chainId: number },
-            oldNetwork: { chainId: number } | null
-          ) => {
+          (newNetwork: { chainId: number }, oldNetwork: { chainId: number } | null) => {
             if (oldNetwork && newNetwork.chainId !== oldNetwork.chainId) {
               console.log(
                 `Network changed from ${oldNetwork.chainId} to ${newNetwork.chainId}`
@@ -284,19 +285,16 @@ export const useWeb3 = () => {
         return ambireProvider;
       }
 
-      // Use BrowserProvider instead of Web3Provider for non-Ambire wallets
-      const provider = new ethers.BrowserProvider(
+      // Use Web3Provider instead of BrowserProvider for non-Ambire wallets
+      const provider = new ethers.providers.Web3Provider(
         connectedWallet.provider,
-        "any"
+        'any'
       );
 
-      // Add network error handler
+      // Add network event handler
       provider.on(
         "network",
-        (
-          newNetwork: { chainId: number },
-          oldNetwork: { chainId: number } | null
-        ) => {
+        (newNetwork: { chainId: number }, oldNetwork: { chainId: number } | null) => {
           if (oldNetwork && newNetwork.chainId !== oldNetwork.chainId) {
             console.log(
               `Network changed from ${oldNetwork.chainId} to ${newNetwork.chainId}`
@@ -319,9 +317,9 @@ export const useWeb3 = () => {
     }
   }, [connectedWallet, connectedChain]);
 
-  const getSigner = async () => {
+  const getSigner = () => {
     const provider = getProvider();
-    return await provider?.getSigner();
+    return provider?.getSigner();
   };
   const connect = async () => {
     if (!web3Onboard) return;
@@ -397,7 +395,7 @@ export const useWeb3 = () => {
                   );
 
                   try {
-                    const provider = new ethers.BrowserProvider(
+                    const provider = new ethers.providers.Web3Provider(
                       wallets[0].provider
                     );
                     const network = await provider.getNetwork();
@@ -574,7 +572,7 @@ export const useWeb3 = () => {
     try {
       if (wallet.label === "Ambire") {
         console.log("Using Ambire-specific network switching method");
-        const provider = new ethers.BrowserProvider(wallet.provider);
+        const provider = new ethers.providers.Web3Provider(wallet.provider);
 
         try {
           const network = await provider.getNetwork();
@@ -635,7 +633,7 @@ export const useWeb3 = () => {
             showNetworkSwitchModal(wallet);
             return false;
           }
-        } catch (switchError: any) {
+        } catch (switchError) {
           console.error("Error switching network for Ambire:", switchError);
 
           try {
@@ -677,7 +675,7 @@ export const useWeb3 = () => {
         }
       }
 
-      const provider = new ethers.BrowserProvider(wallet.provider);
+      const provider = new ethers.providers.Web3Provider(wallet.provider);
 
       try {
         await provider.send("wallet_switchEthereumChain", [
