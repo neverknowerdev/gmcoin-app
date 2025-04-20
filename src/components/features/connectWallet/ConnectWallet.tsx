@@ -1,18 +1,15 @@
 // ConnectWallet.tsx
 import React from "react";
 import styles from "./ConnectWallet.module.css";
-import ButtonBackground from "../../ui/buttons/BlueButton";
-import ButtonYellow from "../../ui/buttons/YellowButton";
+import { ConnectButton } from "thirdweb/react";
+import { client, wallets } from "@/src/config/thirdweb";
 
 interface AuthComponentProps {
   onConnect?: () => void;
   createAmbireWallet?: () => void;
 }
 
-const ConnectWallet: React.FC<AuthComponentProps> = ({
-  onConnect,
-  createAmbireWallet,
-}) => {
+const ConnectWallet: React.FC<AuthComponentProps> = () => {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -32,24 +29,13 @@ const ConnectWallet: React.FC<AuthComponentProps> = ({
       </svg>
       <div className={styles.body}>
         <div className={styles.buttonContainer}>
-          <button
-            className={`${styles.connectButton} ${styles.buttonAnimation}`}
-            onClick={onConnect}
-          >
-            <ButtonYellow />
-            <span className={styles.buttonText}>CONNECT WALLET</span>
-          </button>
+          <div className={`${styles.connectButton} ${styles.buttonAnimation}`}>
+            <ConnectButton
+              client={client}
+              wallets={wallets}
+            />
+          </div>
         </div>
-        {/* <span className={styles.withText}>OR</span>
-        <div className={styles.buttonContainer}>
-          <button
-            className={`${styles.createButton} ${styles.buttonAnimation}`}
-            onClick={createAmbireWallet}
-          >
-            <ButtonBackground />
-            <span className={styles.buttonText}>CREATE WALLET</span>
-          </button>
-        </div> */}
       </div>
 
       <div className={styles.decorations}>

@@ -12,13 +12,13 @@ import { useConnectWallet } from "@web3-onboard/react";
 import { CURRENT_CHAIN } from "@/src/config";
 
 interface SendContractProps {
-  connectedWallet: { 
+  connectedWallet: {
     accounts: { address: string }[],
-    label?: string  
+    label?: string
   } | null;
   sendTransaction: () => Promise<void>;
   walletAddress: string;
-  connect: () => Promise<void>;
+  connect: () => Promise<any>;
   isFirstTimeUser?: boolean;
   transactionStatus?: "idle" | "pending" | "sending" | "success" | "error";
 }
@@ -54,7 +54,7 @@ const SendContract: React.FC<SendContractProps> = ({
 
   // Add flag to track completed authorization requests
   const [authAttempted, setAuthAttempted] = useState(false);
-  
+
 
 
   // Check if user is a returning verified user
@@ -65,7 +65,7 @@ const SendContract: React.FC<SendContractProps> = ({
     const hasCompletedTx = localStorage.getItem(
       "hasCompletedTwitterVerification"
     );
-    
+
 
     // Only auto-show success modal for returning users who have completed verification
     if (
@@ -128,12 +128,12 @@ const SendContract: React.FC<SendContractProps> = ({
       // Show error message, but try to switch network immediately
       setModalState("wrongNetwork");
       setErrorMessage(`Please switch to network ${CURRENT_CHAIN.label} (${CURRENT_CHAIN.id})`);
-      
+
       // If we have an Ambire wallet, add instructions for manual network switch
       if (connectedWallet?.label === 'Ambire') {
         setErrorMessage(`For Ambire wallet: please switch to network ${CURRENT_CHAIN.label} manually in wallet settings.`);
       }
-      
+
       return false;
     }
 
@@ -431,7 +431,7 @@ const SendContract: React.FC<SendContractProps> = ({
   // Error handling for transaction
   const handleTransactionError = (error: any) => {
     let errorMsg = getErrorMessage(error);
-    
+
     // Check for user cancellation
     if (
       error.code === 4001 ||
@@ -451,7 +451,7 @@ const SendContract: React.FC<SendContractProps> = ({
       console.error("💥 Transaction rejected by user:", errorMsg);
       return;
     }
-    
+
     // Check for "wallet already linked" error
     if (error.message?.includes("wallet already linked for that user")) {
       console.log("✅ Wallet already linked for this user, redirecting to dashboard");
@@ -462,7 +462,7 @@ const SendContract: React.FC<SendContractProps> = ({
       router.push("/");
       return;
     }
-    
+
     // Display error
     setErrorMessage(errorMsg);
     setModalState("error");
@@ -476,7 +476,7 @@ const SendContract: React.FC<SendContractProps> = ({
         console.log("⚠️ Transaction already in progress, skipping");
         return;
       }
-      
+
       setModalState("loading");
 
       // Check network before sending transaction
@@ -486,38 +486,38 @@ const SendContract: React.FC<SendContractProps> = ({
       // Additional check for Ambire wallet
       if (connectedWallet?.label === 'Ambire') {
         console.log("Using Ambire wallet, using API relay to bypass limitations");
-        
+
         // Force use of API relay for Ambire due to wallet limitations
         try {
           const provider = getProvider();
-          
+
           if (!provider) {
             throw new Error("Failed to get provider");
           }
-          
+
           // Always use getSigner for Ambire to ensure we have the most recent provider state
           const signer = await provider.getSigner().catch(error => {
             console.error("Error getting signer:", error);
             throw new Error("Failed to get signer from provider");
           });
-          
+
           if (!signer) {
             throw new Error("Failed to get signer");
           }
-          
+
           const address = await signer.getAddress().catch(error => {
             console.error("Error getting address:", error);
             throw new Error("Failed to get address from signer");
           });
-          
+
           const accessToken = sessionStorage.getItem("accessToken");
-          
+
           // Add delay before opening signature window
           setTimeout(async () => {
             try {
               // Show user waiting for signature indicator
               setModalState("loading");
-              
+
               // Call function that handles the API call
               await sendTransaction();
             } catch (delayedError) {
@@ -525,7 +525,7 @@ const SendContract: React.FC<SendContractProps> = ({
               handleTransactionError(delayedError);
             }
           }, 1000); // Increase timeout to 1000ms for better stability
-          
+
           return; // End execution of the main function
         } catch (setupError) {
           console.error("Error setting up transaction for Ambire:", setupError);
@@ -697,7 +697,7 @@ const SendContract: React.FC<SendContractProps> = ({
               </div>
             </div>
           )}
-          
+
           {modalState === "sending" && (
             <div className={styles.modalContent}>
               <div className={styles.loadingContainer}>
