@@ -1,35 +1,29 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import { WalletProvider } from "../context/WalletContext";
+import { ThirdwebProvider } from "thirdweb/react";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "GM ☀️",
-  description: "first tweet&mint coin. Let's spread GM all over the world!",
+  title: "Web3 App",
+  description: "A simple Web3 application with Thirdweb authentication",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <WalletProvider>
-        <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={inter.className}>
+
+        <ThirdwebProvider>
           {children}
-        </body>
-      </WalletProvider>
-    </html>
+        </ThirdwebProvider>
+
+      </body>
+    </html >
   );
 }
