@@ -10,6 +10,9 @@ import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import ButtonBackground from "../../../components/ui/buttons/BlueButton";
+import BlueButton from "../../../components/ui/buttons/BlueButton";
+import Modal from "../../../components/ui/modal/Modal";
+import SunLoader from "../../../components/ui/loader/loader";
 
 export default function SendTransaction() {
   const [authCode, setAuthCode] = useState<string | null>(null);
@@ -167,7 +170,7 @@ export default function SendTransaction() {
           <img src="/image/contract/ballon.webp" alt="Hot Air Balloon" />
         </div>
         {/* Top navigation bar with AccountButton */}
-        <div className="w-full flex justify-end p-4">
+        <div className="w-full flex justify-end" style={{ marginTop: '20px', marginRight: '20px' }}>
           <AccountButton />
         </div>
 
@@ -199,22 +202,22 @@ export default function SendTransaction() {
             </div>
 
             <div className={styles.buttonContainer}>
-              <div
-                className={styles.buttonWrapper}
-              >
-                <button
-                  className={styles.createButton}
-                  onClick={handleSendTransaction}
-                >
-                  <ButtonBackground />
-                  <span className={styles.buttonText}>SEND</span>
-                </button>
-              </div>
+              <BlueButton onClick={handleSendTransaction}>SEND</BlueButton>
             </div>
           </div>
         </div>
 
+        {verificationStatus === 'pending' && (
+          <Modal>
 
+            <div className="flex justify-center items-center">
+              <SunLoader />
+            </div>
+            <div style={{ marginBottom: '50px' }}>
+              <p>Transaction is pending...</p>
+            </div>
+          </Modal>
+        )}
       </div>
     </main >
   );

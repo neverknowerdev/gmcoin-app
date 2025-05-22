@@ -39,11 +39,22 @@ export default function Home() {
   ];
 
   return (
-    <main>
+    <main className="container">
       <div className={styles.header}>
         <div className={styles.airship}>
           <img src="/image/wallet/airship.webp" alt="Airship" />
         </div>
+
+        <svg
+          className={styles.rope}
+          width="500"
+          height="200"
+          viewBox="0 0 500 200"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path d="M50 50 C150 150, 300 0, 450 150" />
+        </svg>
       </div>
       <div className={styles.overlay}>
         <ConnectEmbed

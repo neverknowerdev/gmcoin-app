@@ -7,3 +7,48 @@
   pointer-events: none;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 }
+
+.blueButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 2.5rem;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  min-width: 150px;
+  min-height: 50px;
+  overflow: hidden;
+
+  transition: transform 0.1s;
+}
+
+.blueButton:active {
+  transform: scale(0.97);
+}
+
+.buttonText {
+  position: relative;
+  z-index: 2;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: bold;
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  font-family: Cherry Bomb One, sans-serif;
+  padding: 30px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.blueButton:hover {
+  transform: translateY(-5px);
+  transition: transform 0.2s ease-in-out;
+}
+
+.blueButton {
+  animation: buttonEntrance 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}

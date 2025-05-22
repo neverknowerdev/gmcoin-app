@@ -2,15 +2,20 @@
 
 // import { authedOnly } from "./actions/auth";
 import LogoutButton from "../components/LogoutButton";
-import { useActiveAccount } from "thirdweb/react";
+import { TokenIcon, TokenName, TokenProvider, useActiveAccount } from "thirdweb/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { isLoggedIn, logout } from "./actions/auth";
 import AccountButton from "../components/AccountButton";
+import { baseSepolia, base } from "thirdweb/chains";
+import { client } from "../lib/client";
 
 export default function Dashboard() {
   const router = useRouter();
   const activeAccount = useActiveAccount();
+  const gmTokenAddress = process.env.NEXT_PUBLIC_ENV == 'mainnet' ? "0x26f36F365E5EB6483DF4735e40f87E96e15e0007" : "0x19bD68AD19544FFA043B2c3A5064805682783E91";
+
+  const chain = process.env.NEXT_PUBLIC_ENV == 'mainnet' ? base : baseSepolia;
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -39,11 +44,15 @@ export default function Dashboard() {
           <h1 className="text-4xl font-bold mb-8 text-center">Dashboard</h1>
           <div className="bg-white/30 p-8 rounded-lg shadow-lg">
             <h2 className="text-2xl mb-4">Welcome!</h2>
-            <p className="mb-4">You are logged in</p>
+            <TokenProvider address={gmTokenAddress} client={client} chain={chain}>
+              <TokenIcon />
+              <TokenName />
+            </TokenProvider>
+
             <LogoutButton />
           </div>
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 } 
