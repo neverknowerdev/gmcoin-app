@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThirdwebProvider } from "thirdweb/react";
+import { WagmiProvider } from "wagmi";
+import { config } from "../lib/wagmi";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,10 +26,11 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-
-        <ThirdwebProvider>
-          {children}
-        </ThirdwebProvider>
+        <WagmiProvider config={config}>
+          <ThirdwebProvider>
+            {children}
+          </ThirdwebProvider>
+        </WagmiProvider>
 
       </body>
     </html >

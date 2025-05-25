@@ -1,15 +1,15 @@
 "use client";
 
-import { useProfiles, useActiveAccount, useSendAndConfirmTransaction, useContractEvents } from "thirdweb/react";
+import { useProfiles, useActiveAccount, useSendAndConfirmTransaction } from "thirdweb/react";
 import { client } from "../../../lib/client";
 import { useEffect, useState } from "react";
 import AccountButton from "../../../components/AccountButton";
 import { base, baseSepolia } from "thirdweb/chains";
-import { getContract, prepareContractCall, prepareEvent } from "thirdweb";
+import { getContract, prepareContractCall } from "thirdweb";
+import { useWatchContractEvent } from 'wagmi';
+import type { Log } from 'viem';
 import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
-import ButtonBackground from "../../../components/ui/buttons/BlueButton";
 import BlueButton from "../../../components/ui/buttons/BlueButton";
 import Modal from "../../../components/ui/modal/Modal";
 import SunLoader from "../../../components/ui/loader/loader";
@@ -54,41 +54,36 @@ export default function SendTransaction() {
     client,
   });
 
-  // Prepare the event
-  const twitterVerificationEvent = prepareEvent({
-    signature: "event TwitterVerificationResult(string userID, address indexed wallet, bool isSuccess, string errorMsg)",
-    filters: {
-      wallet: account?.address,
+  // Watch for TwitterVerificationResult events
+  useWatchContractEvent({
+    address: contractAddress as `0x${string}`,
+    abi: [{
+      type: 'event',
+      name: 'TwitterVerificationResult',
+      inputs: [
+        { type: 'string', name: 'userID', indexed: false },
+        { type: 'address', name: 'wallet', indexed: true },
+        { type: 'bool', name: 'isSuccess', indexed: false },
+        { type: 'string', name: 'errorMsg', indexed: false }
+      ]
+    }] as const,
+    eventName: 'TwitterVerificationResult',
+    args: {
+      wallet: account?.address as `0x${string}`
     },
-  });
-
-  // Listen for the event only if a transaction has been sent
-  const { data: events } = useContractEvents({
-    contract,
-    events: [twitterVerificationEvent],
-    enabled: transactionSent,
-  });
-
-
-  // Handle event when received
-  useEffect(() => {
-    if (events && events.length > 0) {
-      const latestEvent = events[events.length - 1];
-      // Skip if the wallet address in the event doesn't match our active wallet
-      if (latestEvent.args.wallet.toLowerCase() !== account?.address?.toLowerCase()) {
-        console.log("Skipping event - wallet address mismatch");
-        return;
-      }
-
-      if (latestEvent.args.isSuccess) {
+    onLogs: (logs) => {
+      console.log("Logs:", logs);
+      const event = logs[0] as Log & { args: { isSuccess: boolean; errorMsg: string } };
+      if (event.args.isSuccess) {
         setVerificationStatus('success');
         setErrorMessage(null);
       } else {
         setVerificationStatus('error');
-        setErrorMessage(latestEvent.args.errorMsg);
+        setErrorMessage(event.args.errorMsg);
       }
-    }
-  }, [events, account?.address]);
+    },
+    enabled: transactionSent && !!account?.address
+  });
 
   if (isLoading) {
     return <div>Loading profiles...</div>;
@@ -109,6 +104,7 @@ export default function SendTransaction() {
   };
 
   const handleSendTransaction = () => {
+    console.log("Sending transaction...");
     if (!account?.address) {
       setVerificationStatus('error');
       setErrorMessage("No wallet address found");
@@ -148,6 +144,7 @@ export default function SendTransaction() {
         console.log("Success! Transaction result:", result);
       },
       onError: (error: any) => {
+        console.log("Error! Transaction result:", error);
         setVerificationStatus('error');
         setErrorMessage(error instanceof Error ? error.message : 'Unknown error occurred');
       },
@@ -208,13 +205,29 @@ export default function SendTransaction() {
         </div>
 
         {verificationStatus === 'pending' && (
-          <Modal>
-
+          <Modal onClose={() => { setVerificationStatus('idle') }}>
             <div className="flex justify-center items-center">
               <SunLoader />
             </div>
             <div style={{ marginBottom: '50px' }}>
               <p>Transaction is pending...</p>
+            </div>
+          </Modal>
+        )}
+
+        {verificationStatus === 'success' && (
+          <Modal onClose={() => { setVerificationStatus('idle') }}>
+            <div className="flex justify-center items-center">
+              <p>Transaction is successful</p>
+            </div>
+          </Modal>
+        )}
+
+        {verificationStatus === 'error' && (
+          <Modal onClose={() => { setVerificationStatus('idle') }}>
+            <div className="flex justify-center items-center">
+              <p>Transaction is failed</p>
+              <p>{errorMessage}</p>
             </div>
           </Modal>
         )}
