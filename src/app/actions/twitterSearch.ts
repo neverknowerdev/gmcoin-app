@@ -1,7 +1,5 @@
 "use server";
 
-import { authedOnly } from "./auth";
-
 export interface TweetResult {
     tweetContent: string;
     tweetID: string;
@@ -11,9 +9,6 @@ export interface TweetResult {
 }
 
 export async function searchTweetWithAuthCode(authCode: string): Promise<TweetResult[]> {
-    // Verify JWT session
-    await authedOnly();
-
     // Calculate timestamp for 10 minutes ago in UTC
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     const sinceDate = tenMinutesAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD in UTC
@@ -21,11 +16,14 @@ export async function searchTweetWithAuthCode(authCode: string): Promise<TweetRe
     // Build complete query string
     const query = `${authCode} since:${sinceDate}`;
 
-    console.log('query', query);
+    const tweetSearchUrl = process.env.TWITTER0_SEARCH_URL;
+    const twitterHeader = process.env.TWITTER0_HEADER;
+    const twitterBearer = process.env.TWITTER0_BEARER;
 
-    const tweetSearchUrl = process.env.TWITTER_SEARCH_URL;
-    const twitterHeader = process.env.TWITTER_HEADER;
-    const twitterBearer = process.env.TWITTER_BEARER;
+    console.log('query', query);
+    console.log('tweetSearchUrl', tweetSearchUrl);
+    console.log('twitterHeader', twitterHeader);
+    console.log('twitterBearer', twitterBearer);
 
     // Make request to Twitter API with time filter
     const response = await fetch(

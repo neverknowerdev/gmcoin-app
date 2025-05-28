@@ -1,46 +1,89 @@
 "use client";
 
-import { useProfiles, useActiveAccount, useLinkProfile } from "thirdweb/react";
-import { client } from "../../../lib/client";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import AccountButton from "../../../components/AccountButton";
 import { generateAuthCode } from "../../../utils/authCode";
-import { searchTweetWithAuthCode } from "../../../app/actions/twitter";
-import type { TweetResult } from "../../../app/actions/twitter";
+import { searchTweetWithAuthCode } from "../../actions/twitterSearch";
+import type { TweetResult } from "../../actions/twitterSearch";
 import styles from "./page.module.css";
 import Modal from "../../../components/ui/modal/Modal";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { generateCodeVerifier } from "../../../utils/authHelpers";
+import { generateCodeChallenge } from "../../../utils/authHelpers";
+import { useSearchParams } from 'next/navigation';
+import { getTwitterUserInfo } from "../../actions/twitterAuth";
+import Cookies from 'js-cookie';
 
 export default function ConnectX() {
   const router = useRouter();
-  const { data: profiles, isLoading, error } = useProfiles({ client });
+  const { allAccounts, address, isConnected, caipAddress, status, embeddedWalletInfo } = useAppKitAccount();
   const [authCode, setAuthCode] = useState<string | null>(null);
-  const account = useActiveAccount();
-  const {
-    mutate: linkProfile,
-    data: linkProfileData,
-    error: linkProfileError,
-    isPending: isLinkingProfile,
-    isSuccess: isLinkProfileSuccess,
-    isError: isLinkProfileError,
-    reset: resetLinkProfile
-  } = useLinkProfile();
+  const searchParams = useSearchParams();
 
-  const [tweetModalOpened, setTweetModalOpened] = useState(false);
+  useEffect(() => {
+    const fetchTwitterAuth = async (code: string) => {
+      try {
+        const twitterUserInfo = await getTwitterUserInfo(code, window.location.origin + window.location.pathname);
+        console.log("twitterUserInfo", twitterUserInfo);
 
-  const [xAccountAlreadyLinked, setXAccountAlreadyLinked] = useState(false);
+        const { username, userId, encryptedAccessToken } = twitterUserInfo;
+
+        if (username && userId && encryptedAccessToken) {
+          localStorage.setItem('xUsername', username);
+          localStorage.setItem('xUserID', userId);
+          localStorage.setItem('encryptedAccessToken', encryptedAccessToken);
+
+          router.push('/login/send-transaction');
+        }
+      } catch (error: any) {
+        setOauthRequestError(error.message);
+        console.error('Error fetching Twitter auth:', error);
+
+        setWaitingForOauthConfirm(false);
+      }
+    }
+
+    const code = searchParams.get('code');
+    if (code) {
+      console.log("code", code);
+      setWaitingForOauthConfirm(true);
+      setVerificationSection("oauth");
+
+      router.replace(window.location.pathname);
+
+      fetchTwitterAuth(code);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (status == "connecting") {
+      return;
+    }
+    if (!isConnected) {
+      router.push('/login');
+    }
+    console.log("allAccounts", allAccounts);
+    console.log("address", address);
+    console.log("isConnected", isConnected);
+    console.log("caipAddress", caipAddress);
+    console.log("status", status);
+  }, [address, isConnected, status]);
+
+  const [waitingForOauthConfirm, setWaitingForOauthConfirm] = useState(false);
+  const [oauthRequestError, setOauthRequestError] = useState<string | null>(null);
+
   const [verificationSection, setVerificationSection] = useState<"tweetToVerify" | "oauth">("tweetToVerify");
   const [displayITweetedButton, setDisplayITweetedButton] = useState(false);
 
-  const [isConfirmingTweet, setIsConfirmingTweet] = useState(false);
-  const [isUserTweeted, setIsUserTweeted] = useState(false);
   const [isSearchingTweet, setIsSearchingTweet] = useState(false);
   const isSearchingRef = useRef(isSearchingTweet);
   const [foundTweet, setFoundTweet] = useState<TweetResult | null>(null);
   const [isConfirmingUsername, setIsConfirmingUsername] = useState(false);
   const [isTimeout, setIsTimeout] = useState(false);
 
-  const [currentTweetIndex, setCurrentTweetIndex] = useState(0);
+  const [tweetTextIndex, setTweetTextIndex] = useState(0);
 
   const tweetTexts = [
     "GM to everyone! I'm verifying my wallet with GMCoin",
@@ -57,29 +100,19 @@ export default function ConnectX() {
 
   const getCurrentTweetText = () => {
     if (!authCode) return "";
-    return `${tweetTexts[currentTweetIndex]}\n\n${authCode} 🚀`;
+    return `${tweetTexts[tweetTextIndex]}\n\n${authCode} 🚀`;
   };
 
   const handleRefreshTweet = () => {
-    setCurrentTweetIndex((prevIndex) => (prevIndex + 1) % tweetTexts.length);
+    setTweetTextIndex((prevIndex) => (prevIndex + 1) % tweetTexts.length);
   };
 
   useEffect(() => {
-    if (profiles) {
-      const xProfile = profiles.find(profile => profile.type === "x");
-      if (xProfile) {
-        console.log('found X profile, redirecting to send-transaction');
-        router.push('/login/send-transaction');
-      }
-    }
-  }, [profiles, router]);
-
-  useEffect(() => {
-    if (account?.address) {
-      const code = generateAuthCode(account.address);
+    if (address && isConnected) {
+      const code = generateAuthCode(address);
       setAuthCode(code);
     }
-  }, [account]);
+  }, [address, isConnected]);
 
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   useEffect(() => {
@@ -148,29 +181,25 @@ export default function ConnectX() {
 
   const handleRetrySearch = () => {
     setIsTimeout(false);
-    setIsUserTweeted(true);
+
     setIsSearchingTweet(true);
   };
 
-  const handleXSignIn = () => {
+  const handleXSignIn = async () => {
     console.log('Starting X sign in process...');
-    linkProfile({
-      client,
-      strategy: "x",
-    }, {
-      onSuccess: (data) => {
-        router.push('/login/send-transaction');
-        console.log('X sign in successful:', data);
-      },
-      onError: (error) => {
-        console.error('X sign in failed:', error);
-        console.log('Error message:', error.message);
 
-        if (error.message === "This profile is already linked to another wallet") {
-          setXAccountAlreadyLinked(true);
-        }
-      }
-    });
+    const verifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(verifier);
+
+    Cookies.set('twitter_code_verifier', verifier);
+
+    const redirectUri = encodeURIComponent(
+      window.location.origin + window.location.pathname
+    );
+
+    const twitterAuthUrl = `https://x.com/i/oauth2/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID}&redirect_uri=${redirectUri}&scope=users.read%20tweet.read&state=state123&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
+    window.location.href = twitterAuthUrl;
   };
 
   const handleShareOnX = () => {
@@ -202,10 +231,9 @@ export default function ConnectX() {
   const handleUsernameReject = () => {
     setFoundTweet(null);
     setIsConfirmingUsername(false);
-    setIsUserTweeted(false);
 
     // regenerate auth code
-    const code = generateAuthCode(account!.address);
+    const code = generateAuthCode(address as `0x${string}`);
     setAuthCode(code);
   };
 
@@ -296,15 +324,18 @@ export default function ConnectX() {
 
             {verificationSection === "oauth" && (
               <div className={styles.customModalContent}>
-                <div className={styles.text}>Don't want to tweet? Use OAuth2 protocol and sign in with X natively using X modal</div>
+                {waitingForOauthConfirm ? (
+                  <div className={styles.text}>Waiting for OAuth2 confirmation...</div>
+                ) : (
+                  <>
+                    <div className={styles.text}>Don't want to tweet? Use OAuth2 protocol and sign in with X natively using X modal</div>
 
-                <button className={styles.customOrangeButton} onClick={handleXSignIn}>SIGN IN WITH X</button>
+                    <button className={styles.customOrangeButton} onClick={handleXSignIn}>SIGN IN WITH X</button>
 
-                {isLinkProfileError && (
-                  <p className="text-red-500 mt-2" style={{ color: 'red' }}>Error signing in with X. Please try again.</p>
-                )}
-                {xAccountAlreadyLinked && (
-                  <p className="text-red-500 mt-2" style={{ color: 'red' }}>This X account is already used for different wallet. Try to logout and login using this X account. Or use authCode verification method</p>
+                    {oauthRequestError && (
+                      <p className="text-red-500 mt-2" style={{ color: 'red' }}>{oauthRequestError}</p>
+                    )}
+                  </>
                 )}
               </div>
             )}

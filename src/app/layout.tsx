@@ -1,22 +1,27 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ThirdwebProvider } from "thirdweb/react";
-import { WagmiProvider } from "wagmi";
-import { config } from "../lib/wagmi";
+import { headers } from "next/headers";
+import AppKitProvider from "../context/appKitProvider";
+import { wagmiAdapter } from "../config/wagmi";
+import { cookieToInitialState } from "wagmi";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Web3 App",
-  description: "A simple Web3 application with Thirdweb authentication",
+  title: "GM Coin App",
+  description: "GM Coin Application",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const headersObj = await headers();
+  const cookies = headersObj.get("cookie");
+  const initialState = cookieToInitialState(wagmiAdapter.wagmiConfig, cookies);
+
   return (
     <html lang="en">
       <head>
@@ -26,13 +31,8 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        <WagmiProvider config={config}>
-          <ThirdwebProvider>
-            {children}
-          </ThirdwebProvider>
-        </WagmiProvider>
-
+        <AppKitProvider initialState={initialState}>{children}</AppKitProvider>
       </body>
-    </html >
+    </html>
   );
 }

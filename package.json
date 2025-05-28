@@ -9,11 +9,20 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@noble/ciphers": "^1.3.0",
+    "@reown/appkit": "^1.7.6",
+    "@reown/appkit-adapter-wagmi": "^1.7.6",
+    "@reown/appkit-siwe": "^1.7.6",
+    "@tanstack/react-query": "^5.77.0",
+    "@types/js-cookie": "^3.0.6",
+    "js-cookie": "^3.0.5",
     "lucide-react": "^0.511.0",
     "next": "^15",
+    "next-auth": "^4.24.11",
     "react": "^19",
     "react-dom": "^19",
-    "thirdweb": "^5",
+    "react-icons": "^5.5.0",
+    "siwe": "^3.0.0",
     "viem": "^2.30.1",
     "wagmi": "^2.15.4"
   },

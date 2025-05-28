@@ -9,6 +9,7 @@
 }
 
 .blueButton {
+  z-index: 10;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -40,8 +41,9 @@
   user-select: none;
   font-family: Cherry Bomb One, sans-serif;
   padding: 30px;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+  -webkit-text-stroke: 0.5px #000;
 }
 
 .blueButton:hover {

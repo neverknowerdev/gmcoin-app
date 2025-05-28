@@ -1,0 +1,470 @@
+.decorations {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    bottom: 0;
+    left: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.rainbow {
+    position: fixed;
+    left: 25%;
+    transform: translateX(-50%);
+    bottom: -20px !important;
+    opacity: 0;
+    filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
+    animation: rainbowRise 1.5s ease-out forwards;
+    animation-delay: 3s;
+    z-index: 1;
+}
+
+.rainbow img {
+    width: 400px;
+    animation: rainbowPulse 3s ease-in-out infinite;
+    animation-delay: 4.5s;
+}
+
+.cloud1,
+.cloud2 {
+    position: fixed;
+    bottom: -20px;
+    filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.1));
+    opacity: 0;
+    will-change: transform;
+    z-index: 1;
+}
+
+.cloud1 {
+    left: -100%;
+    animation: cloudEntrance1 2s ease-out forwards,
+        floatCloud1 30s linear infinite 2s,
+        cloudParallax 8s ease-in-out infinite;
+}
+
+.cloud1 img {
+    width: 820px;
+}
+
+.cloud2 {
+    right: -100px !important;
+    animation: cloudEntrance2 2s ease-out forwards 0.5s,
+        floatCloud2 35s linear infinite 2.5s,
+        cloudParallax 8s ease-in-out infinite reverse;
+}
+
+.cloud2 img {
+    width: 600px;
+}
+
+@keyframes cloudEntrance1 {
+    0% {
+        opacity: 0;
+        left: -100%;
+        transform: scale(0.8);
+    }
+
+    100% {
+        opacity: 1;
+        left: -100px;
+        transform: scale(1);
+    }
+}
+
+@keyframes cloudEntrance2 {
+    0% {
+        opacity: 0;
+        right: -100%;
+        transform: scale(0.8);
+    }
+
+    100% {
+        opacity: 1;
+        right: 0;
+        transform: scale(1);
+    }
+}
+
+@keyframes rainbowRise {
+    0% {
+        opacity: 0;
+        bottom: -200px;
+        transform: translateX(-50%) rotate(-5deg) scale(0.8);
+    }
+
+    50% {
+        opacity: 0.5;
+        bottom: 40px;
+        transform: translateX(-50%) rotate(2deg) scale(1.1);
+    }
+
+    75% {
+        transform: translateX(-50%) rotate(-1deg) scale(0.95);
+    }
+
+    100% {
+        opacity: 1;
+        bottom: 20px;
+        transform: translateX(-50%) rotate(0deg) scale(1);
+    }
+}
+
+@keyframes rainbowPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        filter: brightness(1) saturate(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+        filter: brightness(1.2) saturate(1.2);
+    }
+}
+
+@keyframes floatCloud1 {
+
+    0%,
+    100% {
+        transform: translateX(0) scale(1);
+    }
+
+    50% {
+        transform: translateX(100px) scale(1.05);
+    }
+}
+
+@keyframes floatCloud2 {
+
+    0%,
+    100% {
+        transform: translateX(0) scale(1);
+    }
+
+    50% {
+        transform: translateX(-100px) scale(1.05);
+    }
+}
+
+@keyframes cloudParallax {
+
+    0%,
+    100% {
+        transform: translateZ(0) scale(1);
+    }
+
+    50% {
+        transform: translateZ(50px) scale(1.05);
+    }
+}
+
+@media (max-width: 790px) {
+    .cloud1 img {
+        width: 600px;
+    }
+
+    .cloud2 img {
+        width: 500px;
+    }
+
+    .rainbow img {
+        width: 300px;
+    }
+
+    .rainbow {
+        left: 20%;
+    }
+}
+
+@media (max-width: 450px) {
+    .cloud1 img {
+        width: 400px;
+    }
+
+    .cloud2 img {
+        width: 300px;
+    }
+
+    .rainbow {
+        left: 15%;
+    }
+
+    .rainbow img {
+        width: 200px;
+    }
+}
+
+
+.infoContainer {
+    margin-top: 100px;
+    display: flex;
+    gap: 50px;
+    position: relative;
+    z-index: 2;
+}
+
+.cloude img {
+    width: 500px;
+}
+
+.cosmoman {
+    animation: float 6s ease-in-out infinite;
+    transform-origin: center;
+    position: relative;
+}
+
+.cosmoman img {
+    width: 200px;
+    transition: transform 0.3s ease;
+    filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.2));
+}
+
+.cosmoman:hover img {
+    transform: scale(1.1) rotate(5deg);
+    filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.3));
+}
+
+.cloude {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    background: url("/image/small-cloude.png") no-repeat center center;
+    background-size: cover;
+    width: 500px;
+    height: 240px;
+    animation: fadeIn 1.5s ease-in-out forwards, float 6s ease-in-out infinite;
+    animation-delay: 0s, 1.5s;
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.15));
+    transition: all 0.3s ease;
+}
+
+.cloude:hover {
+    filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.2));
+    transform: translateY(-5px);
+}
+
+.cloude p {
+    padding: 7px;
+    font-size: 32px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+    opacity: 0;
+    transform: scale(1.2);
+    animation: textAppear 1s ease-out forwards 1.5s;
+    position: relative;
+    transition: all 0.3s ease;
+    -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.8);
+}
+
+.cloude p:hover {
+    transform: scale(1.05);
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+.username {
+    font-size: 30px;
+    animation: textAppear 1s ease-out forwards 1s !important;
+}
+
+.balance {
+    font-size: 32px !important;
+    font-weight: bold !important;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    animation: textAppear 1s ease-out forwards 2s;
+    position: relative;
+}
+
+.balance::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    filter: blur(8px);
+    background: inherit;
+    z-index: -1;
+    opacity: 0.5;
+    animation: glowPulse 2s infinite;
+}
+
+.addressContainer,
+.balanceContainer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+}
+
+.iconButton {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px;
+    cursor: pointer;
+    color: white;
+    opacity: 0.85;
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.iconButton:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.iconButton:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.disconnectButton:hover {
+    color: #ff6b6b;
+}
+
+.refreshButton:hover {
+    color: #4dd0e1;
+    transform: rotate(180deg);
+}
+
+@keyframes textAppear {
+    0% {
+        opacity: 0;
+        transform: scale(1.2);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+@keyframes glowPulse {
+
+    0%,
+    100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+    }
+}
+
+@keyframes colorShift {
+    0% {
+        background: linear-gradient(45deg, #ffdd44, #ffa726);
+    }
+
+    100% {
+        background: linear-gradient(45deg, #ffa726, #ff8f00);
+    }
+}
+
+@media (max-width: 790px) {
+    .infoContainer {
+        flex-direction: column;
+        align-items: center;
+        margin-top: 50px;
+        gap: 30px;
+    }
+
+    .cloude {
+        width: 440px;
+        height: 210px;
+    }
+
+    .cosmoman img {
+        width: 150px;
+    }
+
+    .cloude p {
+        font-size: 28px;
+    }
+
+    .username {
+        font-size: 26px;
+    }
+
+    .balance {
+        font-size: 30px !important;
+    }
+}
+
+@media (max-width: 450px) {
+    .cosmoman img {
+        width: 130px;
+    }
+
+    .cloude p {
+        font-size: 20px;
+    }
+
+    .balance {
+        font-size: 23px !important;
+    }
+
+    .cloude {
+        width: 300px;
+        height: 145px;
+    }
+
+    .infoContainer {
+        margin-top: 60px;
+        gap: 20px;
+    }
+
+    .username {
+        font-size: 20px;
+    }
+
+    .iconButton {
+        padding: 5px;
+        border-radius: 10px;
+    }
+
+    .iconButton svg {
+        width: 16px;
+        height: 16px;
+    }
+}
