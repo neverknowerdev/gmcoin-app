@@ -145,7 +145,6 @@ export default function SendTransaction() {
       wallet: address as `0x${string}`
     },
     onLogs: (logs) => {
-      console.log("Logs:", logs);
       const event = logs[0] as Log & { args: { isSuccess: boolean; errorMsg: string } };
       if (event.args.isSuccess) {
         setVerificationStatus('success');
@@ -184,7 +183,6 @@ export default function SendTransaction() {
   } as const;
 
   const handleSendTransaction = async () => {
-    console.log("Sending transaction...");
     if (!address) {
       setVerificationStatus('error');
       setErrorMessage("No wallet address found");
@@ -226,7 +224,6 @@ export default function SendTransaction() {
           capabilities: paymasterCapabilities
         });
 
-        console.log("sendCalls result", result);
         setIsTransactionSentSuccessfully(true);
         setVerificationStatus('success');
         setErrorMessage(null);
@@ -238,7 +235,6 @@ export default function SendTransaction() {
       }
     } else {
       functionDataObj.address = contractAddress as `0x${string}`;
-      console.log("functionDataObj", functionDataObj);
       writeContract(functionDataObj);
     }
   };

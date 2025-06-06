@@ -29,9 +29,6 @@ export default function Home() {
   });
 
   useEffect(() => {
-    console.log("isRegistered", isRegistered);
-    console.log("isConnected", isConnected);
-    console.log("status", status);
     if (status == "connecting" || status == "connected") {
       setIsLoading(true);
     }

@@ -9,7 +9,6 @@ export default function AccountButton() {
     const { status, isConnected } = useAppKitAccount();
 
     useEffect(() => {
-        console.log("accountButton status", status);
         if (status === "disconnected") {
             router.push("/login");
         }

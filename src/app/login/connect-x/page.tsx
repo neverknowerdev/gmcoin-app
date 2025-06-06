@@ -42,7 +42,6 @@ export default function ConnectX() {
   const fetchTwitterAuth = async (code: string) => {
     try {
       const twitterUserInfo = await getTwitterUserInfo(code, window.location.origin + window.location.pathname);
-      console.log("twitterUserInfo", twitterUserInfo);
 
       const { username, userId, encryptedAccessToken } = twitterUserInfo;
 
@@ -62,14 +61,10 @@ export default function ConnectX() {
 
 
   useEffect(() => {
-    console.log("isFetchedIsRegistered", isFetchedIsRegistered);
-    console.log("isRegistered", isRegistered);
-    console.log("xUserID", xUserID);
     if (isFetchedIsRegistered) {
       if (isRegistered === true) {
         setShowRegisteredModal(true);
       } else if (isRegistered === false) {
-        console.log("isRegisrered = false, redirecting to send-transaction");
         router.push('/login/send-transaction');
       }
     }
@@ -85,13 +80,11 @@ export default function ConnectX() {
     }
 
     if (isConnected === false) {
-      console.log("isConnected = false, redirecting to login");
       router.push('/login');
     }
   }, [address, isConnected, status]);
 
   const searchParams = useSearchParams();
-  console.log('searchParams', searchParams.get('code'));
 
   let isWaitingForOAuthInitValue = false;
   let verificationSectionInitValue: "tweetToVerify" | "oauth" = "tweetToVerify";
@@ -176,13 +169,10 @@ export default function ConnectX() {
     if (!isSearchingTweet) return;
 
     const pollForTweet = async (maxAttempts: number = 5) => {
-      console.log('pollForTweet', isSearchingRef.current);
       let attempts = 0;
 
       while (attempts < maxAttempts) {
-        console.log(`pollForTweet attempt ${attempts}`, isSearchingRef.current);
         if (!isSearchingRef.current) {
-          console.log('pollForTweet exiting..', isSearchingRef.current);
           return;
         }
 
@@ -228,7 +218,6 @@ export default function ConnectX() {
   };
 
   const handleXSignIn = async () => {
-    console.log('Starting X sign in process...');
 
     const verifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(verifier);
@@ -282,7 +271,6 @@ export default function ConnectX() {
   const handleGoToLogin = () => {
     setShowRegisteredModal(false)
     disconnect();
-    console.log("handleGoToLogin, redirecting to login");
     router.push("/login");
   };
 

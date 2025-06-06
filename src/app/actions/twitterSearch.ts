@@ -20,11 +20,6 @@ export async function searchTweetWithAuthCode(authCode: string): Promise<TweetRe
     const twitterHeader = process.env.TWITTER0_HEADER;
     const twitterBearer = process.env.TWITTER0_BEARER;
 
-    console.log('query', query);
-    console.log('tweetSearchUrl', tweetSearchUrl);
-    console.log('twitterHeader', twitterHeader);
-    console.log('twitterBearer', twitterBearer);
-
     // Make request to Twitter API with time filter
     const response = await fetch(
         `https://${tweetSearchUrl}?q=${encodeURIComponent(query)}&type=Latest&count=20&safe_search=false`,
