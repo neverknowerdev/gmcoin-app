@@ -1,6 +1,5 @@
 // Modal.tsx
 import React, { ReactNode, useEffect } from "react";
-import ReactDOM from "react-dom";
 import styles from "./Modal.module.css";
 
 interface ModalProps {
@@ -23,7 +22,7 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, []);
 
-  return ReactDOM.createPortal(
+  return (
     <div className={styles.overlay} onClick={onClose}>
       <div
         className={`${styles.modal} ${styles[variant]}`}
@@ -63,8 +62,7 @@ const Modal: React.FC<ModalProps> = ({
           ))}
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 };
 

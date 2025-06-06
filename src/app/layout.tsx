@@ -11,6 +11,11 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "GM Coin App",
   description: "GM Coin Application",
+
+  icons: {
+    icon: "/image/sun.png",
+    apple: "/image/sun.png",
+  },
 };
 
 export default async function RootLayout({
