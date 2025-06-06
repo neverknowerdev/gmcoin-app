@@ -6,7 +6,6 @@ import { State, WagmiProvider, cookieToInitialState, type Config } from 'wagmi'
 import { createAppKit } from '@reown/appkit/react'
 import { config, networks, projectId, wagmiAdapter } from '../config/wagmi'
 import { base, baseSepolia } from '@reown/appkit/networks'
-import { siweConfig } from '../config/siwe'
 
 const queryClient = new QueryClient()
 
