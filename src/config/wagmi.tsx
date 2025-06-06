@@ -1,7 +1,6 @@
 import { cookieStorage, createStorage } from 'wagmi'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { base, baseSepolia } from '@reown/appkit/networks'
-import type { Chain } from 'viem'
+import { AppKitNetwork, base, baseSepolia } from '@reown/appkit/networks'
 
 // Read Project ID from environment variables
 export const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID
@@ -13,7 +12,7 @@ if (!projectId) {
 
 // Define supported networks
 const chain = process.env.NEXT_PUBLIC_ENV === 'mainnet' ? base : baseSepolia;
-export const networks: [Chain, ...Chain[]] = [chain];
+export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [chain];
 
 // Create the Wagmi adapter instance
 export const wagmiAdapter = new WagmiAdapter({

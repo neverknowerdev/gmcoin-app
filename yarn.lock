@@ -1090,6 +1090,11 @@
   dependencies:
     undici-types "~6.20.0"
 
+"@types/react-dom@^19.1.6":
+  version "19.1.6"
+  resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-19.1.6.tgz#4af629da0e9f9c0f506fc4d1caa610399c595d64"
+  integrity sha512-4hOiT/dwO8Ko0gV1m/TJZYk3y0KBnY9vzDh7W+DH17b2HFSOGgdj33dhihPeuy3l0q23+4e+hoXHV6hCC4dCXw==
+
 "@types/react@^19":
   version "19.1.4"
   resolved "https://registry.npmjs.org/@types/react/-/react-19.1.4.tgz"
@@ -3218,7 +3223,7 @@ viem@2.29.0:
     ox "0.6.9"
     ws "8.18.1"
 
-viem@>=2.23.11, viem@^2.1.1, viem@^2.30.1:
+viem@>=2.23.11, viem@^2.1.1:
   version "2.30.1"
   resolved "https://registry.npmjs.org/viem/-/viem-2.30.1.tgz"
   integrity sha512-CkoS5Vv6kiRGmRF2xO2z275Gu90vTrKZHf/ckYXxP2J94UvCnFvUcbRdfit6uebj1I8nFwkGlkkOMuOZDHyO4w==
@@ -3236,6 +3241,20 @@ viem@>=2.29.0:
   version "2.30.5"
   resolved "https://registry.yarnpkg.com/viem/-/viem-2.30.5.tgz#a40cb14e6305907d8f81f0c9bafc6291a18fe964"
   integrity sha512-YymUl7AKsIw3BhQLZxr3j+g8OwqsxmV3xu7zDMmmuFACtvQ3YZaFsKrH7N8eTXpPHYgMlClvKIjgXS8Twt+sQQ==
+  dependencies:
+    "@noble/curves" "1.9.1"
+    "@noble/hashes" "1.8.0"
+    "@scure/bip32" "1.7.0"
+    "@scure/bip39" "1.6.0"
+    abitype "1.0.8"
+    isows "1.0.7"
+    ox "0.7.1"
+    ws "8.18.2"
+
+viem@^2.30.1:
+  version "2.30.6"
+  resolved "https://registry.yarnpkg.com/viem/-/viem-2.30.6.tgz#fffe69aa4d16ab1802b21b44856ae09bacf10f9b"
+  integrity sha512-N3vGy3pZ+EVgQRuWqQhZPFXxQE8qMRrBd3uM+KLc1Ub2w6+vkyr7umeWQCM4c+wlsCdByUgh2630MDMLquMtpg==
   dependencies:
     "@noble/curves" "1.9.1"
     "@noble/hashes" "1.8.0"

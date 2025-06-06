@@ -5,7 +5,7 @@ import styles from "./Modal.module.css";
 
 interface ModalProps {
   children: ReactNode;
-  onClose: () => void;
+  onClose?: () => void;
   variant?: "default" | "success" | "error";
   contentClassName?: string;
 }

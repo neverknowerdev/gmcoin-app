@@ -1,8 +1,5 @@
 "use client";
 
-// import { authedOnly } from "./actions/auth";
-import LogoutButton from "../components/LogoutButton";
-
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
