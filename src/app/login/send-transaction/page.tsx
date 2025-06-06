@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AccountButton from "../../../components/AccountButton";
 
-import { useSendTransaction, useWatchContractEvent, useWriteContract } from 'wagmi';
+import { useWatchContractEvent, useSendCalls, useCapabilities, useWriteContract } from 'wagmi';
 import type { Log } from 'viem';
 import styles from "./page.module.css";
 import { useRouter } from "next/navigation";
@@ -12,10 +12,11 @@ import Modal from "../../../components/ui/modal/Modal";
 import SunLoader from "../../../components/ui/loader/loader";
 import { baseSepolia } from "viem/chains";
 import { base } from "viem/chains";
-import { useAppKit, useAppKitAccount, useAppKitState, useDisconnect } from "@reown/appkit/react";
+import { useAppKit, useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import { RefreshCw } from "lucide-react";
-import { wagmiAdapter } from "../../../config/wagmi";
-import { wagmiContractConfig } from "../../../config/contractAbi";
+
+import { CONTRACT_ADDRESS } from "../../../config/contracts";
+import SplashScreen from "../../../components/ui/splash-screen/splash-screen";
 
 export default function SendTransaction() {
   const [authCode, setAuthCode] = useState<string | null>(null);
@@ -26,11 +27,63 @@ export default function SendTransaction() {
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { writeContract, isPending: isWritingContract, isSuccess: isTransactionSuccess, isError: isTransactionError, error: transactionError } = useWriteContract({
-    config: wagmiAdapter.wagmiConfig,
-  });
+  const [isSendingTransaction, setIsSendingTransaction] = useState(false);
+  const [isTransactionSentSuccessfully, setIsTransactionSentSuccessfully] = useState(false);
+
+  const { writeContract, isPending: isWritingContract, isSuccess: isWriteContractSuccess, isError: isWriteContractError, error: writeContractError } = useWriteContract();
+  const { sendCalls, isPending: isSendingCalls, isSuccess: isSendCallsSuccess, isError: isSendCallsError, error: sendCallsError } = useSendCalls();
+
+  useEffect(() => {
+    if (isWriteContractSuccess) {
+      setIsTransactionSentSuccessfully(true);
+    }
+  }, [isWriteContractSuccess]);
+
+  useEffect(() => {
+    if (isWritingContract) {
+      setIsSendingTransaction(true);
+    }
+  }, [isWritingContract]);
+
+  useEffect(() => {
+    if (isWriteContractError) {
+      setVerificationStatus('error');
+      setErrorMessage(writeContractError?.message);
+    }
+  }, [isWriteContractError]);
+
+  useEffect(() => {
+    if (isSendCallsSuccess) {
+      setIsTransactionSentSuccessfully(true);
+    }
+  }, [isSendCallsSuccess]);
+
+  useEffect(() => {
+    if (isSendingCalls) {
+      setIsSendingTransaction(true);
+    }
+  }, [isSendingCalls]);
+
+  useEffect(() => {
+    if (isSendCallsError) {
+      setVerificationStatus('error');
+      setErrorMessage(sendCallsError?.message);
+    }
+  }, [isSendCallsError]);
+
   const { address, isConnected, status } = useAppKitAccount();
   const { disconnect } = useDisconnect();
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (status == "connecting") {
+      setIsLoading(true);
+    }
+    if (status == "connected") {
+      setIsLoading(false);
+    }
+  }, [status]);
 
   useEffect(() => {
     const storedAuthCode = localStorage.getItem("authCode");
@@ -48,16 +101,31 @@ export default function SendTransaction() {
   const router = useRouter();
 
   const chain = process.env.NEXT_PUBLIC_ENV === 'mainnet' ? base : baseSepolia;
-  const contractAddress = process.env.NEXT_PUBLIC_ENV === 'mainnet'
-    ? "0x26f36F365E5EB6483DF4735e40f87E96e15e0007"
-    : "0x19bD68AD19544FFA043B2c3A5064805682783E91";
+  const contractAddress = CONTRACT_ADDRESS;
+
+  const { data: availableCapabilities } = useCapabilities();
+
+  const paymasterCapabilities = useMemo(() => {
+    if (!availableCapabilities || !chain.id) return {};
+    const capabilitiesForChain = availableCapabilities[chain.id];
+
+    if (capabilitiesForChain && capabilitiesForChain.paymasterService && capabilitiesForChain.paymasterService.supported) {
+      return {
+        paymasterService: {
+          supported: true,
+          url: process.env.NEXT_PUBLIC_PAYMASTER_URL!
+        }
+      };
+    }
+
+  }, [availableCapabilities, chain.id]);
 
   useEffect(() => {
-    if (isTransactionError) {
+    if (isWriteContractError) {
       setVerificationStatus('error');
-      setErrorMessage(transactionError?.message as string);
+      setErrorMessage(writeContractError?.message);
     }
-  }, [isTransactionError]);
+  }, [isWriteContractError]);
 
   // Watch for TwitterVerificationResult events
   useWatchContractEvent({
@@ -87,8 +155,93 @@ export default function SendTransaction() {
         setErrorMessage(event.args.errorMsg);
       }
     },
-    enabled: isTransactionSuccess && !!address
+    enabled: isTransactionSentSuccessfully && !!address
   });
+
+  // Contract function ABIs
+  const contractFunctions = {
+    requestTwitterVerificationByAuthCode: {
+      type: 'function',
+      name: 'requestTwitterVerificationByAuthCode',
+      inputs: [
+        { type: 'string', name: 'authCode' },
+        { type: 'string', name: 'userID' },
+        { type: 'string', name: 'tweetID' }
+      ],
+      outputs: [],
+      stateMutability: 'nonpayable'
+    },
+    requestTwitterVerification: {
+      type: 'function',
+      name: 'requestTwitterVerification',
+      inputs: [
+        { type: 'string', name: 'accessCodeEncrypted' },
+        { type: 'string', name: 'userID' }
+      ],
+      outputs: [],
+      stateMutability: 'nonpayable'
+    }
+  } as const;
+
+  const handleSendTransaction = async () => {
+    console.log("Sending transaction...");
+    if (!address) {
+      setVerificationStatus('error');
+      setErrorMessage("No wallet address found");
+      console.error("No wallet address found");
+      return;
+    }
+
+    setVerificationStatus('pending');
+    setErrorMessage(null);
+
+    let functionDataObj: any;
+    if (authCode && xUserID && xTweetID) {
+      functionDataObj = {
+        abi: [contractFunctions.requestTwitterVerificationByAuthCode],
+        functionName: 'requestTwitterVerificationByAuthCode',
+        args: [authCode, xUserID, xTweetID],
+      }
+    } else if (encryptedAccessToken && xUserID) {
+      functionDataObj = {
+        abi: [contractFunctions.requestTwitterVerification],
+        functionName: 'requestTwitterVerification',
+        args: [encryptedAccessToken, xUserID],
+      };
+    } else {
+      setVerificationStatus('error');
+      setErrorMessage("Neither authCode with xUserID and xTweetID nor encryptedAccessToken is available");
+      console.error("Neither authCode with xUserID and xTweetID nor encryptedAccessToken is available");
+      return;
+    }
+
+    if (paymasterCapabilities && paymasterCapabilities.paymasterService && paymasterCapabilities.paymasterService.supported) {
+      try {
+        setIsSendingTransaction(true);
+        const result = sendCalls({
+          calls: [{
+            ...functionDataObj,
+            to: contractAddress as `0x${string}`
+          }],
+          capabilities: paymasterCapabilities
+        });
+
+        console.log("sendCalls result", result);
+        setIsTransactionSentSuccessfully(true);
+        setVerificationStatus('success');
+        setErrorMessage(null);
+      } catch (error: any) {
+        setVerificationStatus('error');
+        setErrorMessage(error.message);
+      } finally {
+        setIsSendingTransaction(false);
+      }
+    } else {
+      functionDataObj.address = contractAddress as `0x${string}`;
+      console.log("functionDataObj", functionDataObj);
+      writeContract(functionDataObj);
+    }
+  };
 
   const handleReconnectWalletClick = async () => {
     localStorage.removeItem('authCode');
@@ -112,56 +265,6 @@ export default function SendTransaction() {
     router.push('/login');
   };
 
-  const handleSendTransaction = () => {
-    console.log("Sending transaction...");
-    if (!address) {
-      setVerificationStatus('error');
-      setErrorMessage("No wallet address found");
-      console.error("No wallet address found");
-      return;
-    }
-
-    setVerificationStatus('pending');
-    setErrorMessage(null);
-
-    if (authCode && xUserID && xTweetID) {
-      writeContract({
-        ...wagmiContractConfig,
-        address: contractAddress as `0x${string}`,
-        abi: [{
-          type: 'function',
-          name: 'requestTwitterVerificationByAuthCode',
-          inputs: [{ type: 'string', name: 'authCode' }, { type: 'string', name: 'userID' }, { type: 'string', name: 'tweetID' }],
-          outputs: [],
-          stateMutability: 'nonpayable'
-        }],
-        chainId: chain.id,
-        functionName: 'requestTwitterVerificationByAuthCode',
-        args: [authCode, xUserID, xTweetID],
-      });
-    } else if (encryptedAccessToken && xUserID) {
-      writeContract({
-        ...wagmiContractConfig,
-        address: contractAddress as `0x${string}`,
-        abi: [{
-          type: 'function',
-          name: 'requestTwitterVerification',
-          inputs: [{ type: 'string', name: 'accessCodeEncrypted' }, { type: 'string', name: 'userID' }],
-          outputs: [],
-          stateMutability: 'nonpayable'
-        }],
-        chainId: chain.id,
-        functionName: 'requestTwitterVerification',
-        args: [encryptedAccessToken, xUserID],
-      });
-    } else {
-      setVerificationStatus('error');
-      setErrorMessage("Neither authCode with xUserID and xTweetID nor encryptedAccessToken is available");
-      console.error("Neither authCode with xUserID and xTweetID nor encryptedAccessToken is available");
-      return;
-    }
-  };
-
   const formatAddress = (address: string) => {
     if (!address || address === "Please connect wallet")
       return "Please connect wallet";
@@ -170,6 +273,7 @@ export default function SendTransaction() {
 
   return (
     <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+      <SplashScreen isLoading={isLoading} />
       <div className="w-full container min-h-screen">
         <div className={styles.rainbow}>
           <img src="/image/contract/rainbow.webp" alt="Rainbow" />
@@ -235,10 +339,10 @@ export default function SendTransaction() {
               <SunLoader />
             </div>
             <div style={{ marginBottom: '50px' }}>
-              {isWritingContract && (
+              {isSendingTransaction && (
                 <p>Sending transaction...</p>
               )}
-              {isTransactionSuccess && (
+              {isTransactionSentSuccessfully && (
                 <p>Transaction sent, verifying your Twitter account on smart-contract..</p>
               )}
             </div>
@@ -246,7 +350,7 @@ export default function SendTransaction() {
         )}
 
         {verificationStatus === 'success' && (
-          <Modal>
+          <Modal onClose={() => { setVerificationStatus('idle'); }}>
             <div className={styles.modalContent}>
               <p>
                 🎉 Well done!

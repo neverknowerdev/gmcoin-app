@@ -15,66 +15,96 @@ import { generateCodeChallenge } from "../../../utils/authHelpers";
 import { useSearchParams } from 'next/navigation';
 import { getTwitterUserInfo } from "../../actions/twitterAuth";
 import Cookies from 'js-cookie';
+import { useReadContract } from "wagmi";
+import { useDisconnect } from "@reown/appkit/react";
+import { wagmiContractConfig } from "../../../config/contractAbi";
+import SunLoader from "../../../components/ui/loader/loader";
+import SplashScreen from "../../../components/ui/splash-screen/splash-screen";
+
 
 export default function ConnectX() {
   const router = useRouter();
   const { allAccounts, address, isConnected, caipAddress, status, embeddedWalletInfo } = useAppKitAccount();
   const [authCode, setAuthCode] = useState<string | null>(null);
-  const searchParams = useSearchParams();
+  const [showRegisteredModal, setShowRegisteredModal] = useState(false);
+  const [xUserID, setXUserID] = useState<string | null>(null);
+  const { disconnect } = useDisconnect();
+
+  const { data: isRegistered, isFetched: isFetchedIsRegistered, isFetching: isFetchingIsRegistered } = useReadContract({
+    ...wagmiContractConfig,
+    functionName: 'isTwitterUserRegistered',
+    args: [xUserID!],
+    query: {
+      enabled: !!xUserID,
+    }
+  });
+
+  const fetchTwitterAuth = async (code: string) => {
+    try {
+      const twitterUserInfo = await getTwitterUserInfo(code, window.location.origin + window.location.pathname);
+      console.log("twitterUserInfo", twitterUserInfo);
+
+      const { username, userId, encryptedAccessToken } = twitterUserInfo;
+
+      if (username && userId && encryptedAccessToken) {
+        localStorage.setItem('xUsername', username);
+        localStorage.setItem('xUserID', userId);
+        localStorage.setItem('encryptedAccessToken', encryptedAccessToken);
+        setXUserID(userId);
+      }
+    } catch (error: any) {
+      setOauthRequestError(error.message);
+      console.error('Error fetching Twitter auth:', error);
+
+      setWaitingForOauthConfirm(false);
+    }
+  }
+
 
   useEffect(() => {
-    const fetchTwitterAuth = async (code: string) => {
-      try {
-        const twitterUserInfo = await getTwitterUserInfo(code, window.location.origin + window.location.pathname);
-        console.log("twitterUserInfo", twitterUserInfo);
-
-        const { username, userId, encryptedAccessToken } = twitterUserInfo;
-
-        if (username && userId && encryptedAccessToken) {
-          localStorage.setItem('xUsername', username);
-          localStorage.setItem('xUserID', userId);
-          localStorage.setItem('encryptedAccessToken', encryptedAccessToken);
-
-          router.push('/login/send-transaction');
-        }
-      } catch (error: any) {
-        setOauthRequestError(error.message);
-        console.error('Error fetching Twitter auth:', error);
-
-        setWaitingForOauthConfirm(false);
+    console.log("isFetchedIsRegistered", isFetchedIsRegistered);
+    console.log("isRegistered", isRegistered);
+    console.log("xUserID", xUserID);
+    if (isFetchedIsRegistered) {
+      if (isRegistered === true) {
+        setShowRegisteredModal(true);
+      } else if (isRegistered === false) {
+        console.log("isRegisrered = false, redirecting to send-transaction");
+        router.push('/login/send-transaction');
       }
     }
+  }, [isFetchingIsRegistered, isFetchedIsRegistered]);
 
-    const code = searchParams.get('code');
-    if (code) {
-      console.log("code", code);
-      setWaitingForOauthConfirm(true);
-      setVerificationSection("oauth");
-
-      router.replace(window.location.pathname);
-
-      fetchTwitterAuth(code);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     if (status == "connecting") {
       return;
     }
-    if (!isConnected) {
+    if (status === "connected") {
+      return;
+    }
+
+    if (isConnected === false) {
+      console.log("isConnected = false, redirecting to login");
       router.push('/login');
     }
-    console.log("allAccounts", allAccounts);
-    console.log("address", address);
-    console.log("isConnected", isConnected);
-    console.log("caipAddress", caipAddress);
-    console.log("status", status);
   }, [address, isConnected, status]);
 
-  const [waitingForOauthConfirm, setWaitingForOauthConfirm] = useState(false);
+  const searchParams = useSearchParams();
+  console.log('searchParams', searchParams.get('code'));
+
+  let isWaitingForOAuthInitValue = false;
+  let verificationSectionInitValue: "tweetToVerify" | "oauth" = "tweetToVerify";
+  const code = searchParams.get('code');
+  if (code) {
+    isWaitingForOAuthInitValue = true;
+    verificationSectionInitValue = "oauth";
+  }
+
+  const [waitingForOauthConfirm, setWaitingForOauthConfirm] = useState(isWaitingForOAuthInitValue);
   const [oauthRequestError, setOauthRequestError] = useState<string | null>(null);
 
-  const [verificationSection, setVerificationSection] = useState<"tweetToVerify" | "oauth">("tweetToVerify");
+  const [verificationSection, setVerificationSection] = useState<"tweetToVerify" | "oauth">(verificationSectionInitValue);
   const [displayITweetedButton, setDisplayITweetedButton] = useState(false);
 
   const [isSearchingTweet, setIsSearchingTweet] = useState(false);
@@ -84,6 +114,18 @@ export default function ConnectX() {
   const [isTimeout, setIsTimeout] = useState(false);
 
   const [tweetTextIndex, setTweetTextIndex] = useState(0);
+
+
+
+
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (code) {
+      router.replace(window.location.pathname);
+
+      fetchTwitterAuth(code);
+    }
+  }, [searchParams]);
 
   const tweetTexts = [
     "GM to everyone! I'm verifying my wallet with GMCoin",
@@ -216,7 +258,6 @@ export default function ConnectX() {
   };
 
   const handleUsernameConfirm = () => {
-    // TODO: Handle username confirmation
     setIsConfirmingUsername(false);
 
     localStorage.setItem('authCode', authCode || '');
@@ -224,8 +265,9 @@ export default function ConnectX() {
     localStorage.setItem('xUserID', foundTweet?.userID || '');
     localStorage.setItem('xTweetID', foundTweet?.tweetID || '');
 
-    router.push('/login/send-transaction');
-    // Proceed with the next step
+    if (foundTweet?.userID) {
+      setXUserID(foundTweet.userID);
+    }
   };
 
   const handleUsernameReject = () => {
@@ -237,8 +279,16 @@ export default function ConnectX() {
     setAuthCode(code);
   };
 
+  const handleGoToLogin = () => {
+    setShowRegisteredModal(false)
+    disconnect();
+    console.log("handleGoToLogin, redirecting to login");
+    router.push("/login");
+  };
+
   return (
     <div className={styles.container}>
+      {/* <SplashScreen isLoading={isLoading} /> */}
       <div
         className={styles.waveContainer}
         style={{
@@ -325,7 +375,10 @@ export default function ConnectX() {
             {verificationSection === "oauth" && (
               <div className={styles.customModalContent}>
                 {waitingForOauthConfirm ? (
-                  <div className={styles.text}>Waiting for OAuth2 confirmation...</div>
+                  <div className="flex flex-col items-center justify-center">
+                    <div className={styles.text}>Waiting for OAuth2 confirmation...</div>
+                    <SunLoader />
+                  </div>
                 ) : (
                   <>
                     <div className={styles.text}>Don't want to tweet? Use OAuth2 protocol and sign in with X natively using X modal</div>
@@ -380,7 +433,7 @@ export default function ConnectX() {
         }
 
         {isConfirmingUsername && foundTweet && (
-          <Modal>
+          <Modal onClose={() => setIsConfirmingUsername(false)}>
             <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
               <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
                 <p className="text-lg font-medium">Are you <span className="text-xl font-bold text-[#1DA1F2]">@{foundTweet.username}</span> on X?</p>
@@ -425,6 +478,25 @@ export default function ConnectX() {
             </Modal>
           )
         }
+
+        {showRegisteredModal && (
+          <Modal>
+            <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
+              <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
+                <p className="text-lg font-medium">This X account is already registered with a different wallet</p>
+                <p className="text-sm text-gray-500">Please connect using the wallet that was used for the initial registration</p>
+                <div style={{ marginTop: '30px' }}>
+                  <button
+                    onClick={handleGoToLogin}
+                    className={styles.customBlueButton}
+                  >
+                    Go to Login
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
 
       </main >
     </div >

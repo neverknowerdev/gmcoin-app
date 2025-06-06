@@ -14,12 +14,13 @@ import { useAppKit, useDisconnect } from "@reown/appkit/react";
 import styles from "./page.module.css";
 import { disconnect } from "node:process";
 import { wagmiContractConfig } from "../config/contractAbi";
+import { CONTRACT_ADDRESS } from "../config/contracts";
 
 
 export default function Dashboard() {
   const router = useRouter();
 
-  const gmTokenAddress = process.env.NEXT_PUBLIC_ENV == 'mainnet' ? "0x26f36F365E5EB6483DF4735e40f87E96e15e0007" : "0x19bD68AD19544FFA043B2c3A5064805682783E91";
+  const gmTokenAddress = CONTRACT_ADDRESS;
 
   const [twitterName, setTwitterName] = useState<string | null>(null);
 
@@ -27,9 +28,9 @@ export default function Dashboard() {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
 
-  const { data: userID, isFetched: isFetchedUserID } = useReadContract({
+  const { data: isRegistered, isFetched: isFetchedIsRegistered } = useReadContract({
     ...wagmiContractConfig,
-    functionName: 'userByWallet',
+    functionName: 'isWalletRegistered',
     args: [address as `0x${string}`],
     query: {
       enabled: isConnected,
@@ -38,13 +39,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     const checkUser = async () => {
-      if (isFetchedUserID && !userID) {
+      if (isFetchedIsRegistered && !isRegistered) {
         await disconnect();
         router.push("/login");
       }
     }
     checkUser();
-  }, [userID, isFetchedUserID]);
+  }, [isRegistered, isFetchedIsRegistered]);
 
   useEffect(() => {
     const twitterName = localStorage.getItem("xUsername");

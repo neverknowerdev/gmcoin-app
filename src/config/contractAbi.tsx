@@ -1,9 +1,7 @@
-const contractAddress = process.env.NEXT_PUBLIC_ENV === 'mainnet'
-    ? "0x26f36F365E5EB6483DF4735e40f87E96e15e0007"
-    : "0x19bD68AD19544FFA043B2c3A5064805682783E91";
+import { CONTRACT_ADDRESS } from "./contracts";
 
 export const wagmiContractConfig = {
-    address: contractAddress,
+    address: CONTRACT_ADDRESS,
     abi: [
         {
             type: 'function',
@@ -25,6 +23,20 @@ export const wagmiContractConfig = {
             stateMutability: 'view',
             inputs: [{ name: 'wallet', type: 'address' }],
             outputs: [{ name: '', type: 'string' }],
+        },
+        {
+            type: 'function',
+            name: 'isTwitterUserRegistered',
+            stateMutability: 'view',
+            inputs: [{ name: 'userID', type: 'string' }],
+            outputs: [{ name: '', type: 'bool' }],
+        },
+        {
+            type: 'function',
+            name: 'isWalletRegistered',
+            stateMutability: 'view',
+            inputs: [{ name: 'wallet', type: 'address' }],
+            outputs: [{ name: '', type: 'bool' }],
         }
     ],
 } as const

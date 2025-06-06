@@ -8,17 +8,20 @@ import BlueButton from "../../components/ui/buttons/BlueButton";
 import YellowButton from "../../components/ui/buttons/YellowButton";
 import { useReadContract } from "wagmi";
 import { wagmiContractConfig } from "../../config/contractAbi";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import SplashScreen from "../../components/ui/splash-screen/splash-screen";
 
 export default function Home() {
   const router = useRouter();
   const { open } = useAppKit();
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const { address, isConnected, status, embeddedWalletInfo } = useAppKitAccount();
 
-  const { data: userID, isLoading: isLoadingUserID } = useReadContract({
+  const { data: isRegistered, isFetched: isFetchedIsRegistered, isFetching: isFetchingIsRegistered } = useReadContract({
     ...wagmiContractConfig,
-    functionName: 'userByWallet',
+    functionName: 'isWalletRegistered',
     args: [address as `0x${string}`],
     query: {
       enabled: isConnected,
@@ -26,22 +29,27 @@ export default function Home() {
   });
 
   useEffect(() => {
-    console.log("userID", userID);
+    console.log("isRegistered", isRegistered);
     console.log("isConnected", isConnected);
     console.log("status", status);
+    if (status == "connecting" || status == "connected") {
+      setIsLoading(true);
+    }
+
     if (status == "connected") {
-      if (isConnected && userID) {
+      if (isConnected && isRegistered === true) {
         router.push('/');
       }
-      if (isConnected && !userID) {
+      if (isConnected && isRegistered === false) {
         router.push('/login/connect-x');
       }
     }
 
-  }, [userID, isConnected, status]);
+  }, [isRegistered, isConnected, status]);
 
   return (
     <main className="container">
+      <SplashScreen isLoading={isLoading} />
       <div className={styles.header}>
         <div className={styles.airship}>
           <img src="/image/wallet/airship.webp" alt="Airship" />

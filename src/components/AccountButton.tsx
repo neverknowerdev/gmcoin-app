@@ -6,9 +6,10 @@ import { useEffect } from "react";
 
 export default function AccountButton() {
     const router = useRouter();
-    const { status } = useAppKitAccount();
+    const { status, isConnected } = useAppKitAccount();
 
     useEffect(() => {
+        console.log("accountButton status", status);
         if (status === "disconnected") {
             router.push("/login");
         }
