@@ -28,20 +28,20 @@ if (!projectId) {
         networks: networks,
         defaultNetwork: chain,
         metadata,
-        features: {
-            socials: [
-                "google",
-                "x",
-                "github",
-                "discord",
-                "apple",
-                "facebook",
-                "farcaster",
-            ],
-            email: true, // default to true
-            emailShowWallets: true, // default to true
-            analytics: true,
-        },
+        // features: {
+        //     socials: [
+        //         "google",
+        //         "x",
+        //         "github",
+        //         "discord",
+        //         "apple",
+        //         "facebook",
+        //         "farcaster",
+        //     ],
+        //     email: true, // default to true
+        //     emailShowWallets: true, // default to true
+        //     analytics: true,
+        // },
         enableNetworkSwitch: false,
         enableCoinbase: true,
         featuredWalletIds: [
