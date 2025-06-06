@@ -1,35 +1,43 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import { WalletProvider } from "../context/WalletContext";
+import { headers } from "next/headers";
+import AppKitProvider from "../context/appKitProvider";
+import { wagmiAdapter } from "../config/wagmi";
+import { cookieToInitialState } from "wagmi";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "GM ☀️",
-  description: "first tweet&mint coin. Let's spread GM all over the world!",
+  title: "GM Coin App",
+  description: "GM Coin Application",
+
+  icons: {
+    icon: "/image/sun.png",
+    apple: "/image/sun.png",
+  },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
+  const headersObj = await headers();
+  const cookies = headersObj.get("cookie");
+  const initialState = cookieToInitialState(wagmiAdapter.wagmiConfig, cookies);
+
   return (
     <html lang="en">
-      <WalletProvider>
-        <body className={`${geistSans.variable} ${geistMono.variable}`}>
-          {children}
-        </body>
-      </WalletProvider>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Cherry+Bomb+One&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className={inter.className}>
+        <AppKitProvider initialState={initialState}>{children}</AppKitProvider>
+      </body>
     </html>
   );
 }

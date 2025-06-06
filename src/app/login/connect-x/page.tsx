@@ -1,0 +1,504 @@
+"use client";
+
+
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
+import AccountButton from "../../../components/AccountButton";
+import { generateAuthCode } from "../../../utils/authCode";
+import { searchTweetWithAuthCode } from "../../actions/twitterSearch";
+import type { TweetResult } from "../../actions/twitterSearch";
+import styles from "./page.module.css";
+import Modal from "../../../components/ui/modal/Modal";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { generateCodeVerifier } from "../../../utils/authHelpers";
+import { generateCodeChallenge } from "../../../utils/authHelpers";
+import { useSearchParams } from 'next/navigation';
+import { getTwitterUserInfo } from "../../actions/twitterAuth";
+import Cookies from 'js-cookie';
+import { useReadContract } from "wagmi";
+import { useDisconnect } from "@reown/appkit/react";
+import { wagmiContractConfig } from "../../../config/contractAbi";
+import SunLoader from "../../../components/ui/loader/loader";
+import SplashScreen from "../../../components/ui/splash-screen/splash-screen";
+
+
+export default function ConnectX() {
+  const router = useRouter();
+  const { allAccounts, address, isConnected, caipAddress, status, embeddedWalletInfo } = useAppKitAccount();
+  const [authCode, setAuthCode] = useState<string | null>(null);
+  const [showRegisteredModal, setShowRegisteredModal] = useState(false);
+  const [xUserID, setXUserID] = useState<string | null>(null);
+  const { disconnect } = useDisconnect();
+
+  const { data: isRegistered, isFetched: isFetchedIsRegistered, isFetching: isFetchingIsRegistered } = useReadContract({
+    ...wagmiContractConfig,
+    functionName: 'isTwitterUserRegistered',
+    args: [xUserID!],
+    query: {
+      enabled: !!xUserID,
+    }
+  });
+
+  const fetchTwitterAuth = async (code: string) => {
+    try {
+      const twitterUserInfo = await getTwitterUserInfo(code, window.location.origin + window.location.pathname);
+      console.log("twitterUserInfo", twitterUserInfo);
+
+      const { username, userId, encryptedAccessToken } = twitterUserInfo;
+
+      if (username && userId && encryptedAccessToken) {
+        localStorage.setItem('xUsername', username);
+        localStorage.setItem('xUserID', userId);
+        localStorage.setItem('encryptedAccessToken', encryptedAccessToken);
+        setXUserID(userId);
+      }
+    } catch (error: any) {
+      setOauthRequestError(error.message);
+      console.error('Error fetching Twitter auth:', error);
+
+      setWaitingForOauthConfirm(false);
+    }
+  }
+
+
+  useEffect(() => {
+    console.log("isFetchedIsRegistered", isFetchedIsRegistered);
+    console.log("isRegistered", isRegistered);
+    console.log("xUserID", xUserID);
+    if (isFetchedIsRegistered) {
+      if (isRegistered === true) {
+        setShowRegisteredModal(true);
+      } else if (isRegistered === false) {
+        console.log("isRegisrered = false, redirecting to send-transaction");
+        router.push('/login/send-transaction');
+      }
+    }
+  }, [isFetchingIsRegistered, isFetchedIsRegistered]);
+
+
+  useEffect(() => {
+    if (status == "connecting") {
+      return;
+    }
+    if (status === "connected") {
+      return;
+    }
+
+    if (isConnected === false) {
+      console.log("isConnected = false, redirecting to login");
+      router.push('/login');
+    }
+  }, [address, isConnected, status]);
+
+  const searchParams = useSearchParams();
+  console.log('searchParams', searchParams.get('code'));
+
+  let isWaitingForOAuthInitValue = false;
+  let verificationSectionInitValue: "tweetToVerify" | "oauth" = "tweetToVerify";
+  const code = searchParams.get('code');
+  if (code) {
+    isWaitingForOAuthInitValue = true;
+    verificationSectionInitValue = "oauth";
+  }
+
+  const [waitingForOauthConfirm, setWaitingForOauthConfirm] = useState(isWaitingForOAuthInitValue);
+  const [oauthRequestError, setOauthRequestError] = useState<string | null>(null);
+
+  const [verificationSection, setVerificationSection] = useState<"tweetToVerify" | "oauth">(verificationSectionInitValue);
+  const [displayITweetedButton, setDisplayITweetedButton] = useState(false);
+
+  const [isSearchingTweet, setIsSearchingTweet] = useState(false);
+  const isSearchingRef = useRef(isSearchingTweet);
+  const [foundTweet, setFoundTweet] = useState<TweetResult | null>(null);
+  const [isConfirmingUsername, setIsConfirmingUsername] = useState(false);
+  const [isTimeout, setIsTimeout] = useState(false);
+
+  const [tweetTextIndex, setTweetTextIndex] = useState(0);
+
+
+
+
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (code) {
+      router.replace(window.location.pathname);
+
+      fetchTwitterAuth(code);
+    }
+  }, [searchParams]);
+
+  const tweetTexts = [
+    "GM to everyone! I'm verifying my wallet with GMCoin",
+    "Just joined the GMCoin community! Verifying my wallet",
+    "Excited to be part of GMCoin! Verifying my wallet",
+    "GMCoin verification in progress!",
+    "Ready to GM with GMCoin! Verifying my wallet",
+    "Joining the GMCoin revolution! Wallet verification",
+    "GMCoin here I come! Verifying my wallet",
+    "Another day, another GM! Verifying my GMCoin wallet",
+    "GMCoin verification time!",
+    "Let's GM together! Verifying my GMCoin wallet"
+  ];
+
+  const getCurrentTweetText = () => {
+    if (!authCode) return "";
+    return `${tweetTexts[tweetTextIndex]}\n\n${authCode} 🚀`;
+  };
+
+  const handleRefreshTweet = () => {
+    setTweetTextIndex((prevIndex) => (prevIndex + 1) % tweetTexts.length);
+  };
+
+  useEffect(() => {
+    if (address && isConnected) {
+      const code = generateAuthCode(address);
+      setAuthCode(code);
+    }
+  }, [address, isConnected]);
+
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = (e.clientX / window.innerWidth) * 20 - 10;
+      const y = (e.clientY / window.innerHeight) * 20 - 10;
+      setMousePosition({ x, y });
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
+  useEffect(() => {
+    isSearchingRef.current = isSearchingTweet;
+  }, [isSearchingTweet]);
+
+  useEffect(() => {
+    if (!isSearchingTweet) return;
+
+    const pollForTweet = async (maxAttempts: number = 5) => {
+      console.log('pollForTweet', isSearchingRef.current);
+      let attempts = 0;
+
+      while (attempts < maxAttempts) {
+        console.log(`pollForTweet attempt ${attempts}`, isSearchingRef.current);
+        if (!isSearchingRef.current) {
+          console.log('pollForTweet exiting..', isSearchingRef.current);
+          return;
+        }
+
+        try {
+          const tweets = await searchTweetWithAuthCode(authCode || '');
+          if (tweets.length > 0) {
+            // Get the earliest tweet
+            const earliestTweet = tweets.reduce((earliest, current) => {
+              return new Date(current.postedAt) < new Date(earliest.postedAt) ? current : earliest;
+            });
+
+            setFoundTweet(earliestTweet);
+            setIsSearchingTweet(false);
+            setIsConfirmingUsername(true);
+            return true;
+          }
+        } catch (error) {
+          console.error('Error searching for tweet:', error);
+        }
+
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between attempts
+      }
+
+      setIsSearchingTweet(false);
+      setIsTimeout(true);
+      return false;
+    };
+
+    pollForTweet();
+  }, [isSearchingTweet]);
+
+
+
+  const handleOnUserTweeted = () => {
+    setIsSearchingTweet(true);
+  };
+
+  const handleRetrySearch = () => {
+    setIsTimeout(false);
+
+    setIsSearchingTweet(true);
+  };
+
+  const handleXSignIn = async () => {
+    console.log('Starting X sign in process...');
+
+    const verifier = generateCodeVerifier();
+    const codeChallenge = await generateCodeChallenge(verifier);
+
+    Cookies.set('twitter_code_verifier', verifier);
+
+    const redirectUri = encodeURIComponent(
+      window.location.origin + window.location.pathname
+    );
+
+    const twitterAuthUrl = `https://x.com/i/oauth2/authorize?response_type=code&client_id=${process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID}&redirect_uri=${redirectUri}&scope=users.read%20tweet.read&state=state123&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
+    window.location.href = twitterAuthUrl;
+  };
+
+  const handleShareOnX = () => {
+    if (!authCode) return;
+
+    const tweetText = encodeURIComponent(getCurrentTweetText());
+    const intentUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
+
+    // Show the confirmation popup
+    setDisplayITweetedButton(true);
+
+    // Open the intent window
+    window.open(intentUrl, '_blank');
+  };
+
+  const handleUsernameConfirm = () => {
+    setIsConfirmingUsername(false);
+
+    localStorage.setItem('authCode', authCode || '');
+    localStorage.setItem('xUsername', foundTweet?.username || '');
+    localStorage.setItem('xUserID', foundTweet?.userID || '');
+    localStorage.setItem('xTweetID', foundTweet?.tweetID || '');
+
+    if (foundTweet?.userID) {
+      setXUserID(foundTweet.userID);
+    }
+  };
+
+  const handleUsernameReject = () => {
+    setFoundTweet(null);
+    setIsConfirmingUsername(false);
+
+    // regenerate auth code
+    const code = generateAuthCode(address as `0x${string}`);
+    setAuthCode(code);
+  };
+
+  const handleGoToLogin = () => {
+    setShowRegisteredModal(false)
+    disconnect();
+    console.log("handleGoToLogin, redirecting to login");
+    router.push("/login");
+  };
+
+  return (
+    <div className={styles.container}>
+      {/* <SplashScreen isLoading={isLoading} /> */}
+      <div
+        className={styles.waveContainer}
+        style={{
+          transform: `translate(${mousePosition.x * 0.2}px, ${mousePosition.y * 0.2}px)`,
+        }}
+      >
+        <img src="/image/xcloude.webp" alt="" className={styles.waveImage} />
+      </div>
+      <div
+        className={styles.planeContainer}
+        style={{
+          transform: `translate(${mousePosition.x}px, ${mousePosition.y}px)`,
+        }}
+      >
+        <img src="/image/planepng.webp" alt="" className={styles.planeImage} />
+      </div>
+
+      <div
+        className={styles.cloudContainer}
+        style={{
+          transform: `translate(${mousePosition.x * -0.3}px, ${mousePosition.y * -0.3}px)`,
+        }}
+      >
+        <img src="/image/whcloude.webp" alt="" className={styles.cloudImage} />
+      </div>
+      <div
+        className={styles.birdContainer}
+        style={{
+          transform: `translate(${mousePosition.x * -0.5}px, ${mousePosition.y * -0.5}px)`,
+        }}
+      >
+        <img src="/image/birds.webp" alt="" className={styles.birdImage} />
+      </div>
+      {/* Top navigation bar with AccountButton */}
+      <div className="w-full flex justify-end p-4 mt-5 mr-5" style={{ marginTop: '15px', marginRight: '30px' }}>
+        <AccountButton />
+      </div>
+
+      {/* Main content */}
+      <main className="flex min-h-[calc(100vh-4rem)] z-10">
+        <div className="text-center space-y-8">
+
+          <div className={styles.contentArea}>
+            <h1 className="text-2xl font-bold mb-4">Connect X</h1>
+
+            <div className={styles.twitterConnectTabsWrapper}>
+              <button
+                className={`${styles.tabButton} ${verificationSection === "tweetToVerify" ? styles.tabActive : ''}`}
+                onClick={() => setVerificationSection("tweetToVerify")}
+              >
+                <span className={styles.tabText}>Tweet to Verify</span>
+              </button>
+              <button
+                className={`${styles.tabButton} ${verificationSection === "oauth" ? styles.tabActive : ''}`}
+                onClick={() => setVerificationSection("oauth")}
+              >
+                <span className={styles.tabText}>Connect with X</span>
+              </button>
+            </div>
+
+            {verificationSection === "tweetToVerify" && (
+              <div className={styles.customModalContent}>
+                <div className={styles.text}>Here is your verification code. You should post tweet with them. Click on button below to post tweet.</div>
+                <div className={styles.customTweetBox}>
+                  <div className={styles.tweetBoxHeader}>
+                    <span className={styles.tweetBoxLabel}>Your tweet message:</span>
+                    <button className={styles.refreshTweetButton} onClick={handleRefreshTweet}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                    </button>
+                  </div>
+                  <p className={styles.tweetPreview}>{getCurrentTweetText()}</p>
+                  <div className={styles.modalCodeWrapper}>
+                    <strong className={styles.customAuthCode}>{authCode}</strong>
+                    <button className={styles.modalCopyButton}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <button className={styles.customOrangeButton} onClick={handleShareOnX}>POST ON X</button>
+              </div>
+            )}
+
+            {verificationSection === "oauth" && (
+              <div className={styles.customModalContent}>
+                {waitingForOauthConfirm ? (
+                  <div className="flex flex-col items-center justify-center">
+                    <div className={styles.text}>Waiting for OAuth2 confirmation...</div>
+                    <SunLoader />
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.text}>Don't want to tweet? Use OAuth2 protocol and sign in with X natively using X modal</div>
+
+                    <button className={styles.customOrangeButton} onClick={handleXSignIn}>SIGN IN WITH X</button>
+
+                    {oauthRequestError && (
+                      <p className="text-red-500 mt-2" style={{ color: 'red' }}>{oauthRequestError}</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+
+
+          {displayITweetedButton && (
+            <Modal onClose={() => setDisplayITweetedButton(false)}>
+              <div className="mt-8">
+                <p>Tweeted? <br /> Click on button to verify your account.</p>
+                <button className={styles.customOrangeButton} onClick={handleOnUserTweeted} style={{ marginTop: '20px' }}>VERIFY MY TWEET</button>
+              </div>
+            </Modal>
+
+          )}
+
+        </div >
+
+        {
+          isSearchingTweet && (
+            <Modal onClose={() => setIsSearchingTweet(false)}>
+              <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
+                <div className="bg-[#ffffff] p-8 rounded-lg shadow-xl flex flex-col items-center space-y-6">
+                  <svg
+                    width="56" height="56" viewBox="0 0 50 50"
+                    className="animate-spin"
+                    style={{ animation: 'spin 1s linear infinite' }}
+                  >
+                    <circle className="opacity-20" cx="25" cy="25" r="20" stroke="#1DA1F2" strokeWidth="7" fill="none" />
+                    <circle cx="25" cy="25" r="20" stroke="#1DA1F2" strokeWidth="7" fill="none" strokeDasharray="31.4 125.6" strokeLinecap="round" />
+                  </svg>
+                  <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+                  <div className="text-center space-y-2" style={{ marginBottom: '30px' }}>
+                    <p className="text-xl font-medium text-gray-800">Verifying your tweet...</p>
+                    <p className="text-sm text-gray-500">This should only take a moment</p>
+                  </div>
+                </div>
+              </div>
+            </Modal>
+          )
+        }
+
+        {isConfirmingUsername && foundTweet && (
+          <Modal onClose={() => setIsConfirmingUsername(false)}>
+            <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
+              <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
+                <p className="text-lg font-medium">Are you <span className="text-xl font-bold text-[#1DA1F2]">@{foundTweet.username}</span> on X?</p>
+                <div style={{ marginTop: '30px' }}>
+                  <button
+                    onClick={handleUsernameConfirm}
+                    className={styles.customBlueButton}
+                  >
+                    Yes, that's me
+                  </button>
+                  <button
+                    onClick={handleUsernameReject}
+                    className={styles.customRedButton}
+                  >
+                    No, try again
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Timeout Popup */}
+        {
+          isTimeout && (
+            <Modal onClose={() => setIsTimeout(false)}>
+              <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
+                <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
+                  <p className="text-lg font-medium">Cannot find your tweet...</p>
+                  <p>You sure you posted tweet with code?</p>
+                  <div className="" style={{ marginTop: '30px' }}>
+
+                    <button
+                      onClick={handleRetrySearch}
+                      className={styles.customBlueButton}
+                    >
+                      Yes, try again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Modal>
+          )
+        }
+
+        {showRegisteredModal && (
+          <Modal>
+            <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
+              <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
+                <p className="text-lg font-medium">This X account is already registered with a different wallet</p>
+                <p className="text-sm text-gray-500">Please connect using the wallet that was used for the initial registration</p>
+                <div style={{ marginTop: '30px' }}>
+                  <button
+                    onClick={handleGoToLogin}
+                    className={styles.customBlueButton}
+                  >
+                    Go to Login
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+      </main >
+    </div >
+  );
+} 

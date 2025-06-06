@@ -1,63 +1,135 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useWallet } from "../hooks/useWallet";
-import { useWeb3 } from "../hooks/useWeb3";
-import { UserInfo } from "../components/ui/dashboard/UserInfo/UserInfo";
-import { DashboardDecorations } from "../components/ui/dashboard/DashboardDecorations/DashboardDecorations";
-import styles from "./dashboard.module.css";
 
-const Dashboard = () => {
-  const { disconnect: web3Disconnect, getSigner } = useWeb3();
-  const { updateWalletInfo } = useWallet();
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+import AccountButton from "../components/AccountButton";
+
+import { useAccount, useBalance, useReadContract } from 'wagmi';
+import { base } from "@reown/appkit/networks";
+import { useAppKit, useDisconnect } from "@reown/appkit/react";
+import styles from "./page.module.css";
+import { disconnect } from "node:process";
+import { wagmiContractConfig } from "../config/contractAbi";
+import { CONTRACT_ADDRESS } from "../config/contracts";
+
+
+export default function Dashboard() {
   const router = useRouter();
 
-  const [walletAddress, setWalletAddress] = useState("");
-  const [twitterName, setTwitterName] = useState("@username");
+  const gmTokenAddress = CONTRACT_ADDRESS;
+
+  const [twitterName, setTwitterName] = useState<string | null>(null);
+
+
+  const { address, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
+
+  const { data: isRegistered, isFetched: isFetchedIsRegistered } = useReadContract({
+    ...wagmiContractConfig,
+    functionName: 'isWalletRegistered',
+    args: [address as `0x${string}`],
+    query: {
+      enabled: isConnected,
+    }
+  });
 
   useEffect(() => {
-    const checkAuth = () => {
-      const isAuthenticated =
-        localStorage.getItem("userAuthenticated") === "true";
-      const wallet = localStorage.getItem("walletAddress");
-      const twitter = localStorage.getItem("twitterName") || "@username";
-
-      if (!isAuthenticated || !wallet) {
-        router.push("/connect");
-        return;
+    const checkUser = async () => {
+      if (isFetchedIsRegistered && !isRegistered) {
+        await disconnect();
+        router.push("/login");
       }
+    }
+    checkUser();
+  }, [isRegistered, isFetchedIsRegistered]);
 
-      updateWalletInfo(wallet);
-      setWalletAddress(wallet);
-      setTwitterName(twitter);
-    };
-
-    checkAuth();
+  useEffect(() => {
+    const twitterName = localStorage.getItem("xUsername");
+    if (twitterName) {
+      setTwitterName(twitterName);
+    }
   }, []);
 
-  const handleDisconnect = async () => {
-    try {
-      await web3Disconnect();
-      updateWalletInfo("");
-      localStorage.clear();
-      sessionStorage.clear();
-      window.location.href = "/connect";
-    } catch (error) {
-      console.error("Error disconnecting:", error);
-    }
+
+  const { data: balance } = useBalance({
+    address: address as `0x${string}`,
+    token: gmTokenAddress as `0x${string}`,
+  });
+
+  const formatAddress = (address: string) => {
+    if (!address || address === "Please connect wallet")
+      return "Please connect wallet";
+    return `${address.slice(0, 8)}...${address.slice(-4)}`;
+  };
+
+  const onDisconnect = () => {
+    disconnect();
+    router.push("/login");
   };
 
   return (
-    <div className={styles.container}>
-      <UserInfo
-        twitterName={twitterName}
-        walletAddress={walletAddress}
-        onDisconnect={handleDisconnect}
-        signer={getSigner()}
-      />
-      <DashboardDecorations />
-    </div>
-  );
-};
+    <main className="container">
+      <div className="min-h-screen w-full">
+        <div className={styles.decorations}>
+          <div className={styles.rainbow}>
+            <img src="/image/wallet/rainbow.png" alt="Rainbow" />
+          </div>
+          <div className={styles.cloud1}>
+            <img src="/image/wallet/cloud1.png" alt="Cloud1" />
+          </div>
+          <div className={styles.cloud2}>
+            <img src="/image/wallet/cloud2.png" alt="Cloud2" />
+          </div>
+        </div>
+        {/* Top navigation bar with AccountButton */}
+        <div className="w-full flex justify-end" style={{ marginTop: '20px', marginRight: '20px' }}>
+          <AccountButton />
+        </div>
 
-export default Dashboard;
+
+        {/* Main content */}
+
+        <div className={`${styles.infoContainer} flex items-center justify-center`}>
+          <div className={styles.cosmoman}>
+            <img src="/image/cosmoman.png" alt="Cosmoman" />
+          </div>
+
+          <div className={styles.cloude}>
+            <p className={styles.username}>
+              {twitterName}
+            </p>
+            <div className={styles.addressContainer}>
+              <p>{formatAddress(address as string)}</p>
+              <button
+                className={`${styles.iconButton} ${styles.disconnectButton}`}
+                onClick={onDisconnect}
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M10 3H6a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h4" />
+                  <path d="M18 8l4 4-4 4" />
+                  <path d="M22 12H10" />
+                </svg>
+              </button>
+            </div>
+            <div className={styles.balanceContainer}>
+              <p className={styles.balance}>
+                {Number(balance?.value) / 1e18} {balance?.symbol}
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  );
+} 

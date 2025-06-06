@@ -1,5 +1,13 @@
+import React from 'react';
 import styles from "./BlueButton.module.css";
-const ButtonYellow = () => (
+
+interface YellowButtonProps {
+  onClick?: () => void;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const ButtonBackground = () => (
   <svg
     width="385"
     height="155"
@@ -87,4 +95,18 @@ const ButtonYellow = () => (
     </defs>
   </svg>
 );
-export default ButtonYellow;
+
+const YellowButton: React.FC<YellowButtonProps> = ({ onClick, children, className }) => {
+  return (
+    <button
+      onClick={onClick}
+      className={`${styles.blueButton} ${className || ''}`.trim()}
+      type="button"
+    >
+      <ButtonBackground />
+      <span className={styles.buttonText}>{children}</span>
+    </button>
+  );
+};
+
+export default YellowButton;

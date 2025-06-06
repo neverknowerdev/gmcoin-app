@@ -5,7 +5,7 @@ const SunLoader = () => {
   return (
     <>
       <div className={styles.sunWrapper}>
-        <img src="/sun.png" alt="Sun" className={styles.sunImage} />
+        <img src="/image/sun.png" alt="Sun" className={styles.sunImage} />
         <div className={styles.sunGlow}></div>
         <div className={styles.sunFlare}></div>
       </div>
