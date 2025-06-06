@@ -7,7 +7,6 @@ interface SplashScreenProps {
 }
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ isLoading }) => {
-    console.log("isLoading", isLoading);
     if (!isLoading) return null;
 
     return (
