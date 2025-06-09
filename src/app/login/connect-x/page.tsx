@@ -188,9 +188,6 @@ export default function ConnectX() {
     if (!isSearchingTweetByAuthCode) return;
 
     const pollForTweet = async (maxAttempts: number = 5) => {
-      setIsSearchingTweetByAuthCode(false);
-      setIsTwitterSearchFailed(true);
-      return false; // for testing locally
       let attempts = 0;
 
       while (attempts < maxAttempts) {
