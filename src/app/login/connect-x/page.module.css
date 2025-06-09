@@ -414,6 +414,61 @@ p.text {
     max-width: 400px;
 }
 
+.label {
+    margin-left: 10px;
+    margin-top: 20px;
+    font-family: "Cherry Bomb One", serif;
+    font-size: 25px;
+    font-weight: bold;
+    color: #333;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    -webkit-text-stroke: 0.5px white;
+    animation: labelBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* Текстовое поле */
+.inputGroup {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+/* OrangeInput.module.css */
+.input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.input:focus {
+    border-color: #1DA1F2;
+}
+
+.pasteButton {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.pasteButton:hover {
+    color: #1DA1F2;
+}
+
 /* Existing animations */
 @keyframes spin {
     to {
@@ -656,12 +711,6 @@ p.text {
       transform: translate(0, 0) scale(1) rotate(0deg);
     }
   } */
-
-@keyframes spin {
-    to {
-        transform: translateY(-50%) rotate(360deg);
-    }
-}
 
 @media (max-width: 1280px) {
     .container {

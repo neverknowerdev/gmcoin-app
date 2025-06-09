@@ -4,8 +4,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import AccountButton from "../../../components/AccountButton";
-import { generateAuthCode } from "../../../utils/authCode";
-import { searchTweetWithAuthCode } from "../../actions/twitterSearch";
+import { generateAuthCode as generateAuthCodeServer } from "../../../utils/authCode";
+import { searchTweetByUrlOrUsername, searchTweetWithAuthCode } from "../../actions/twitterSearch";
 import type { TweetResult } from "../../actions/twitterSearch";
 import styles from "./page.module.css";
 import Modal from "../../../components/ui/modal/Modal";
@@ -26,7 +26,7 @@ export default function ConnectX() {
   const router = useRouter();
   const { allAccounts, address, isConnected, caipAddress, status, embeddedWalletInfo } = useAppKitAccount();
   const [authCode, setAuthCode] = useState<string | null>(null);
-  const [showRegisteredModal, setShowRegisteredModal] = useState(false);
+  const [isShowRegisteredModal, setShowRegisteredModal] = useState(false);
   const [xUserID, setXUserID] = useState<string | null>(null);
   const { disconnect } = useDisconnect();
 
@@ -38,27 +38,6 @@ export default function ConnectX() {
       enabled: !!xUserID,
     }
   });
-
-  const fetchTwitterAuth = async (code: string) => {
-    try {
-      const twitterUserInfo = await getTwitterUserInfo(code, window.location.origin + window.location.pathname);
-
-      const { username, userId, encryptedAccessToken } = twitterUserInfo;
-
-      if (username && userId && encryptedAccessToken) {
-        localStorage.setItem('xUsername', username);
-        localStorage.setItem('xUserID', userId);
-        localStorage.setItem('encryptedAccessToken', encryptedAccessToken);
-        setXUserID(userId);
-      }
-    } catch (error: any) {
-      setOauthRequestError(error.message);
-      console.error('Error fetching Twitter auth:', error);
-
-      setWaitingForOauthConfirm(false);
-    }
-  }
-
 
   useEffect(() => {
     if (isFetchedIsRegistered) {
@@ -100,18 +79,65 @@ export default function ConnectX() {
   const [verificationSection, setVerificationSection] = useState<"tweetToVerify" | "oauth">(verificationSectionInitValue);
   const [displayITweetedButton, setDisplayITweetedButton] = useState(false);
 
-  const [isSearchingTweet, setIsSearchingTweet] = useState(false);
-  const isSearchingRef = useRef(isSearchingTweet);
+  const [isSearchingTweetByAuthCode, setIsSearchingTweetByAuthCode] = useState(false);
+  const [isSearchingTweetByUsernameOrTweetUrl, setIsSearchingTweetByUsernameOrTweetUrl] = useState(false);
+  const isSearchingRef = useRef(isSearchingTweetByAuthCode);
   const [foundTweet, setFoundTweet] = useState<TweetResult | null>(null);
-  const [isConfirmingUsername, setIsConfirmingUsername] = useState(false);
-  const [isTimeout, setIsTimeout] = useState(false);
+  const [isTwitterSearchFailed, setIsTwitterSearchFailed] = useState(false);
 
   const [tweetTextIndex, setTweetTextIndex] = useState(0);
 
+  const [isEnteringManually, setIsEnteringManually] = useState(false);
+  const [usernameOrTweetUrlInput, setUsernameOrTweetUrlInput] = useState('');
+  const [twitterManualSearchError, setTwitterManualSearchError] = useState('');
 
-
+  const generateAuthCode = () => {
+    if (address && isConnected) {
+      const code = generateAuthCodeServer(address);
+      setAuthCode(code);
+      localStorage.setItem('authCode', code);
+    }
+  }
 
   useEffect(() => {
+    const authCode = localStorage.getItem('authCode');
+    if (authCode) {
+      setAuthCode(authCode);
+    } else {
+      generateAuthCode();
+    }
+  }, [address]);
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setUsernameOrTweetUrlInput(text);
+    } catch (error) {
+      console.error('Failed to read clipboard:', error);
+    }
+  };
+
+  useEffect(() => {
+    const fetchTwitterAuth = async (code: string) => {
+      try {
+        const twitterUserInfo = await getTwitterUserInfo(code, window.location.origin + window.location.pathname);
+
+        const { username, userId, encryptedAccessToken } = twitterUserInfo;
+
+        if (username && userId && encryptedAccessToken) {
+          localStorage.setItem('xUsername', username);
+          localStorage.setItem('xUserID', userId);
+          localStorage.setItem('encryptedAccessToken', encryptedAccessToken);
+          setXUserID(userId);
+        }
+      } catch (error: any) {
+        setOauthRequestError(error.message);
+        console.error('Error fetching Twitter auth:', error);
+
+        setWaitingForOauthConfirm(false);
+      }
+    }
+
     const code = searchParams.get('code');
     if (code) {
       router.replace(window.location.pathname);
@@ -142,13 +168,6 @@ export default function ConnectX() {
     setTweetTextIndex((prevIndex) => (prevIndex + 1) % tweetTexts.length);
   };
 
-  useEffect(() => {
-    if (address && isConnected) {
-      const code = generateAuthCode(address);
-      setAuthCode(code);
-    }
-  }, [address, isConnected]);
-
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -162,13 +181,16 @@ export default function ConnectX() {
   }, []);
 
   useEffect(() => {
-    isSearchingRef.current = isSearchingTweet;
-  }, [isSearchingTweet]);
+    isSearchingRef.current = isSearchingTweetByAuthCode;
+  }, [isSearchingTweetByAuthCode]);
 
   useEffect(() => {
-    if (!isSearchingTweet) return;
+    if (!isSearchingTweetByAuthCode) return;
 
     const pollForTweet = async (maxAttempts: number = 5) => {
+      setIsSearchingTweetByAuthCode(false);
+      setIsTwitterSearchFailed(true);
+      return false; // for testing locally
       let attempts = 0;
 
       while (attempts < maxAttempts) {
@@ -184,9 +206,8 @@ export default function ConnectX() {
               return new Date(current.postedAt) < new Date(earliest.postedAt) ? current : earliest;
             });
 
+            setIsSearchingTweetByAuthCode(false);
             setFoundTweet(earliestTweet);
-            setIsSearchingTweet(false);
-            setIsConfirmingUsername(true);
             return true;
           }
         } catch (error) {
@@ -197,24 +218,24 @@ export default function ConnectX() {
         await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between attempts
       }
 
-      setIsSearchingTweet(false);
-      setIsTimeout(true);
+      setIsSearchingTweetByAuthCode(false);
+      setIsTwitterSearchFailed(true);
       return false;
     };
 
     pollForTweet();
-  }, [isSearchingTweet]);
+  }, [isSearchingTweetByAuthCode]);
 
 
 
   const handleOnUserTweeted = () => {
-    setIsSearchingTweet(true);
+    setIsSearchingTweetByAuthCode(true);
   };
 
   const handleRetrySearch = () => {
-    setIsTimeout(false);
+    setIsTwitterSearchFailed(false);
 
-    setIsSearchingTweet(true);
+    setIsSearchingTweetByAuthCode(true);
   };
 
   const handleXSignIn = async () => {
@@ -246,33 +267,40 @@ export default function ConnectX() {
     window.open(intentUrl, '_blank');
   };
 
-  const handleUsernameConfirm = () => {
-    setIsConfirmingUsername(false);
-
-    localStorage.setItem('authCode', authCode || '');
-    localStorage.setItem('xUsername', foundTweet?.username || '');
-    localStorage.setItem('xUserID', foundTweet?.userID || '');
-    localStorage.setItem('xTweetID', foundTweet?.tweetID || '');
-
-    if (foundTweet?.userID) {
-      setXUserID(foundTweet.userID);
-    }
-  };
-
-  const handleUsernameReject = () => {
-    setFoundTweet(null);
-    setIsConfirmingUsername(false);
-
-    // regenerate auth code
-    const code = generateAuthCode(address as `0x${string}`);
-    setAuthCode(code);
-  };
-
   const handleGoToLogin = () => {
     setShowRegisteredModal(false)
     disconnect();
     router.push("/login");
   };
+
+  const handleEnterManually = async () => {
+    try {
+      setIsEnteringManually(false);
+      setIsSearchingTweetByUsernameOrTweetUrl(true);
+      setIsTwitterSearchFailed(false);
+      const tweets = await searchTweetByUrlOrUsername(usernameOrTweetUrlInput, authCode!);
+      setIsSearchingTweetByUsernameOrTweetUrl(false);
+      if (tweets.length > 0) {
+        setFoundTweet(tweets[0]);
+      } else {
+        setTwitterManualSearchError('No tweet found');
+        setIsEnteringManually(true);
+      }
+    } catch (error) {
+      console.error('Error searching for tweet:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (foundTweet?.userID) {
+      localStorage.setItem('authCode', authCode || '');
+      localStorage.setItem('xUsername', foundTweet?.username || '');
+      localStorage.setItem('xUserID', foundTweet?.userID || '');
+      localStorage.setItem('xTweetID', foundTweet?.tweetID || '');
+
+      router.push('/login/send-transaction');
+    }
+  }, [foundTweet]);
 
   return (
     <div className={styles.container}>
@@ -397,8 +425,11 @@ export default function ConnectX() {
         </div >
 
         {
-          isSearchingTweet && (
-            <Modal onClose={() => setIsSearchingTweet(false)}>
+          isSearchingTweetByAuthCode || isSearchingTweetByUsernameOrTweetUrl && (
+            <Modal onClose={() => {
+              setIsSearchingTweetByAuthCode(false);
+              setIsSearchingTweetByUsernameOrTweetUrl(false);
+            }}>
               <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
                 <div className="bg-[#ffffff] p-8 rounded-lg shadow-xl flex flex-col items-center space-y-6">
                   <svg
@@ -420,54 +451,92 @@ export default function ConnectX() {
           )
         }
 
-        {isConfirmingUsername && foundTweet && (
-          <Modal onClose={() => setIsConfirmingUsername(false)}>
-            <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
-              <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
-                <p className="text-lg font-medium">Are you <span className="text-xl font-bold text-[#1DA1F2]">@{foundTweet.username}</span> on X?</p>
-                <div style={{ marginTop: '30px' }}>
-                  <button
-                    onClick={handleUsernameConfirm}
-                    className={styles.customBlueButton}
-                  >
-                    Yes, that's me
-                  </button>
-                  <button
-                    onClick={handleUsernameReject}
-                    className={styles.customRedButton}
-                  >
-                    No, try again
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Modal>
-        )}
-
-        {/* Timeout Popup */}
         {
-          isTimeout && (
-            <Modal onClose={() => setIsTimeout(false)}>
+          isTwitterSearchFailed && (
+            <Modal onClose={() => setIsTwitterSearchFailed(false)}>
               <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
                 <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
                   <p className="text-lg font-medium">Cannot find your tweet...</p>
-                  <p>You sure you posted tweet with code?</p>
+                  <p className="text-[16px] text-gray-500">X can not give tweets in results for some accounts. If you're sure you posted it, you can enter your username or tweet's URL manually.</p>
                   <div className="" style={{ marginTop: '30px' }}>
 
                     <button
                       onClick={handleRetrySearch}
                       className={styles.customBlueButton}
                     >
-                      Yes, try again
+                      Search again
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsEnteringManually(true);
+                        setIsTwitterSearchFailed(false);
+                      }}
+                      className={styles.customOrangeButton}
+                    >
+                      Enter manually
                     </button>
                   </div>
+
+
                 </div>
               </div>
             </Modal>
           )
         }
 
-        {showRegisteredModal && (
+        {isEnteringManually && (
+          <Modal onClose={() => setIsEnteringManually(false)}>
+            <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
+              <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
+                {twitterManualSearchError && <p className="text-lg font-medium" style={{ color: 'red' }}>Error: {twitterManualSearchError}</p>}
+                <p className="text-lg font-medium">Enter manually</p>
+                <br />
+
+                <div className={styles.inputGroup}>
+                  <input
+                    name="usernameOrTweetUrl"
+                    type="text"
+                    placeholder="Username of tweet URL"
+                    className={styles.input}
+                    autoComplete="off"
+                    inputMode="text"
+                    autoCorrect="off"
+                    value={usernameOrTweetUrlInput}
+                    onChange={(e) => setUsernameOrTweetUrlInput(e.target.value)}
+                  />
+                  <button
+                    onClick={handlePasteFromClipboard}
+                    className={styles.pasteButton}
+                    type="button"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                    </svg>
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500" style={{ fontSize: '1rem' }}>Provide your username or tweet's URL that contains verification code</p>
+                <br />
+                <button className={styles.customBlueButton} onClick={handleEnterManually}>Search</button>
+
+              </div>
+
+            </div>
+          </Modal>
+        )}
+
+        {foundTweet && (
+          <Modal>
+            <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
+              <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
+                <p className="text-lg font-medium">Verification tweet found! Redirecting...</p>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {isShowRegisteredModal && (
           <Modal>
             <div className="inset-0 bg-[#ffffff] flex items-center justify-center">
               <div className="bg-[#ffffff] p-6 rounded-lg shadow-xl flex flex-col items-center space-y-4">
