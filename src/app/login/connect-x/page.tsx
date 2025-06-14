@@ -101,8 +101,19 @@ export default function ConnectX() {
 
   useEffect(() => {
     const authCode = localStorage.getItem('authCode');
+
     if (authCode) {
-      setAuthCode(authCode);
+      // Verify that the authCode is from this address
+      const walletStartingLetterNumber = parseInt(authCode.slice(2, 4));
+      const wallet10Letters = authCode.slice(4, 14);
+      const currentWallet10Letters = address?.slice(walletStartingLetterNumber, walletStartingLetterNumber + 10).toUpperCase();
+
+      if (currentWallet10Letters === wallet10Letters) {
+        setAuthCode(authCode);
+      } else {
+        // If authCode doesn't match current address, generate a new one
+        generateAuthCode();
+      }
     } else {
       generateAuthCode();
     }

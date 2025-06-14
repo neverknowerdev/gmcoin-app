@@ -335,7 +335,7 @@ export default function SendTransaction() {
               <SunLoader />
             </div>
             <div style={{ marginBottom: '50px' }}>
-              {isSendingTransaction && (
+              {isSendingTransaction && !isTransactionSentSuccessfully && (
                 <p>Sending transaction...</p>
               )}
               {isTransactionSentSuccessfully && (
