@@ -57,7 +57,7 @@ export default function ConnectX() {
     if (status == "reconnecting") {
       return;
     }
-    
+
     if (status == "connecting") {
       return;
     }
@@ -85,6 +85,24 @@ export default function ConnectX() {
 
   const [verificationSection, setVerificationSection] = useState<"tweetToVerify" | "oauth">(verificationSectionInitValue);
   const [displayITweetedButton, setDisplayITweetedButton] = useState(false);
+
+  // Restore modal state from localStorage on page load
+  useEffect(() => {
+    const savedModalState = localStorage.getItem('displayITweetedButton');
+    if (savedModalState === 'true') {
+      setDisplayITweetedButton(true);
+    }
+  }, []);
+
+  // Helper function to set modal state and persist to localStorage
+  const setDisplayITweetedButtonWithPersistence = (value: boolean) => {
+    setDisplayITweetedButton(value);
+    if (value) {
+      localStorage.setItem('displayITweetedButton', 'true');
+    } else {
+      localStorage.removeItem('displayITweetedButton');
+    }
+  };
 
   const [isSearchingTweetByAuthCode, setIsSearchingTweetByAuthCode] = useState(false);
   const [isSearchingTweetByUsernameOrTweetUrl, setIsSearchingTweetByUsernameOrTweetUrl] = useState(false);
@@ -276,14 +294,18 @@ export default function ConnectX() {
     const intentUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
 
     // Show the confirmation popup
-    setDisplayITweetedButton(true);
+    setDisplayITweetedButtonWithPersistence(true);
 
     // Open the intent window
     window.open(intentUrl, '_blank');
   };
 
   const handleGoToLogin = () => {
-    setShowRegisteredModal(false)
+    setShowRegisteredModal(false);
+
+    // Clear modal state when going back to login
+    localStorage.removeItem('displayITweetedButton');
+
     disconnect();
     router.push("/login");
   };
@@ -312,6 +334,9 @@ export default function ConnectX() {
       localStorage.setItem('xUsername', foundTweet?.username || '');
       localStorage.setItem('xUserID', foundTweet?.userID || '');
       localStorage.setItem('xTweetID', foundTweet?.tweetID || '');
+
+      // Clear modal state since verification is complete
+      localStorage.removeItem('displayITweetedButton');
 
       router.push('/login/send-transaction');
     }
@@ -437,7 +462,7 @@ export default function ConnectX() {
 
 
           {displayITweetedButton && (
-            <Modal onClose={() => setDisplayITweetedButton(false)}>
+            <Modal onClose={() => setDisplayITweetedButtonWithPersistence(false)}>
               <div className="mt-8">
                 <p>Tweeted? <br /> Click on button to verify your account.</p>
                 <button className={styles.customOrangeButton} onClick={handleOnUserTweeted} style={{ marginTop: '20px' }}>VERIFY MY TWEET</button>
