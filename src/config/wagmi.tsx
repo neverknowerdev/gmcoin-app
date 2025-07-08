@@ -1,4 +1,4 @@
-import { cookieStorage, createStorage } from 'wagmi'
+// Note: cookieStorage removed as it's not compatible with the new @reown/appkit version
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import { AppKitNetwork, base, baseSepolia } from '@reown/appkit/networks'
 
@@ -16,7 +16,6 @@ export const networks: [AppKitNetwork, ...AppKitNetwork[]] = [chain];
 
 // Create the Wagmi adapter instance
 export const wagmiAdapter = new WagmiAdapter({
-    storage: createStorage({ storage: cookieStorage }), // Use cookieStorage for SSR
     ssr: true, // Enable SSR support
     projectId,
     networks
