@@ -9,10 +9,6 @@ export default function AccountButton() {
     const { status, isConnected } = useAppKitAccount();
 
     useEffect(() => {
-        if (status === "reconnecting") {
-            return;
-        }
-
         if (status === "disconnected") {
             router.push("/login");
         }
@@ -23,4 +19,4 @@ export default function AccountButton() {
             <appkit-button />
         </div>
     );
-} 
+}

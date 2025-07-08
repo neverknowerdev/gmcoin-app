@@ -51,24 +51,10 @@ export default function ConnectX() {
 
 
   useEffect(() => {
-
-    console.log('status', status);
-
-    if (status == "reconnecting") {
-      return;
-    }
-
-    if (status == "connecting") {
-      return;
-    }
-    if (status === "connected") {
-      return;
-    }
-
-    if (isConnected === false) {
+    if (status === "disconnected") {
       router.push('/login');
     }
-  }, [address, isConnected, status]);
+  }, [status]);
 
   const searchParams = useSearchParams();
 
@@ -304,7 +290,7 @@ export default function ConnectX() {
     setShowRegisteredModal(false);
 
     // Clear modal state when going back to login
-    localStorage.removeItem('displayITweetedButton');
+    setDisplayITweetedButtonWithPersistence(false);
 
     disconnect();
     router.push("/login");
@@ -336,7 +322,7 @@ export default function ConnectX() {
       localStorage.setItem('xTweetID', foundTweet?.tweetID || '');
 
       // Clear modal state since verification is complete
-      localStorage.removeItem('displayITweetedButton');
+      setDisplayITweetedButtonWithPersistence(false);
 
       router.push('/login/send-transaction');
     }
@@ -607,4 +593,4 @@ export default function ConnectX() {
       </main >
     </div >
   );
-} 
+}
