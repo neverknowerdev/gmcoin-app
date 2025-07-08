@@ -19,4 +19,4 @@ export default function AccountButton() {
             <appkit-button />
         </div>
     );
-} 
+}
