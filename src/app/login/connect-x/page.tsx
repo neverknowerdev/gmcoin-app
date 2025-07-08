@@ -19,7 +19,7 @@ import { useReadContract } from "wagmi";
 import { useDisconnect } from "@reown/appkit/react";
 import { wagmiContractConfig } from "../../../config/contractAbi";
 import SunLoader from "../../../components/ui/loader/loader";
-import SplashScreen from "../../../components/ui/splash-screen/splash-screen";
+// import SplashScreen from "../../../components/ui/splash-screen/splash-screen";
 
 
 export default function ConnectX() {
