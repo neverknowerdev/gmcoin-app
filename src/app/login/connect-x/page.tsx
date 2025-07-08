@@ -51,6 +51,13 @@ export default function ConnectX() {
 
 
   useEffect(() => {
+
+    console.log('status', status);
+
+    if (status == "reconnecting") {
+      return;
+    }
+    
     if (status == "connecting") {
       return;
     }
