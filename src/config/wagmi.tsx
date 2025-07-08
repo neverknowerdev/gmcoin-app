@@ -1,4 +1,3 @@
-// Note: cookieStorage removed as it's not compatible with the new @reown/appkit version
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import { AppKitNetwork, base, baseSepolia } from '@reown/appkit/networks'
 
