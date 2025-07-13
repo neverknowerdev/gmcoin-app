@@ -19,11 +19,13 @@ import { useReadContract } from "wagmi";
 import { useDisconnect } from "@reown/appkit/react";
 import { wagmiContractConfig } from "../../../config/contractAbi";
 import SunLoader from "../../../components/ui/loader/loader";
+import { useTracking } from "../../../hooks/useTracking";
 // import SplashScreen from "../../../components/ui/splash-screen/splash-screen";
 
 
 export default function ConnectX() {
   const router = useRouter();
+  const { trackPageVisit, trackTwitterVerification } = useTracking();
   const { allAccounts, address, isConnected, caipAddress, status, embeddedWalletInfo } = useAppKitAccount();
   const [authCode, setAuthCode] = useState<string | null>(null);
   const [isShowRegisteredModal, setShowRegisteredModal] = useState(false);
@@ -203,6 +205,10 @@ export default function ConnectX() {
   }, []);
 
   useEffect(() => {
+    trackPageVisit("Connect X");
+  }, [trackPageVisit]);
+
+  useEffect(() => {
     isSearchingRef.current = isSearchingTweetByAuthCode;
   }, [isSearchingTweetByAuthCode]);
 
@@ -258,6 +264,7 @@ export default function ConnectX() {
   };
 
   const handleXSignIn = async () => {
+    trackTwitterVerification("oauth");
 
     const verifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(verifier);
@@ -275,6 +282,8 @@ export default function ConnectX() {
 
   const handleShareOnX = () => {
     if (!authCode) return;
+    
+    trackTwitterVerification("tweet");
 
     const tweetText = encodeURIComponent(getCurrentTweetText());
     const intentUrl = `https://twitter.com/intent/tweet?text=${tweetText}`;
