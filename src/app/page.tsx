@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import AccountButton from "../components/AccountButton";
+import { useTracking } from "../hooks/useTracking";
 
 import { useAccount, useBalance, useReadContract } from 'wagmi';
 import { base } from "@reown/appkit/networks";
@@ -16,6 +17,7 @@ import { CONTRACT_ADDRESS } from "../config/contracts";
 
 export default function Dashboard() {
   const router = useRouter();
+  const { trackPageVisit } = useTracking();
 
   const gmTokenAddress = CONTRACT_ADDRESS;
 
@@ -49,7 +51,8 @@ export default function Dashboard() {
     if (twitterName) {
       setTwitterName(twitterName);
     }
-  }, []);
+    trackPageVisit("Dashboard");
+  }, [trackPageVisit]);
 
 
   const { data: balance } = useBalance({

@@ -17,6 +17,7 @@ import { RefreshCw } from "lucide-react";
 
 import { CONTRACT_ADDRESS } from "../../../config/contracts";
 import SplashScreen from "../../../components/ui/splash-screen/splash-screen";
+import { useTracking } from "../../../hooks/useTracking";
 
 export default function SendTransaction() {
   const [authCode, setAuthCode] = useState<string | null>(null);
@@ -73,6 +74,7 @@ export default function SendTransaction() {
 
   const { address, isConnected, status } = useAppKitAccount();
   const { disconnect } = useDisconnect();
+  const { trackPageVisit, trackTransactionSent, trackVerificationSuccess, trackError, trackGMTweet } = useTracking();
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -96,7 +98,9 @@ export default function SendTransaction() {
     setXUserID(storedXUserID);
     setXTweetID(storedXTweetID);
     setEncryptedAccessToken(storedEncryptedAccessToken);
-  }, []);
+    
+    trackPageVisit("Send Transaction");
+  }, [trackPageVisit]);
 
   const router = useRouter();
 
@@ -149,9 +153,11 @@ export default function SendTransaction() {
       if (event.args.isSuccess) {
         setVerificationStatus('success');
         setErrorMessage(null);
+        trackVerificationSuccess();
       } else {
         setVerificationStatus('error');
         setErrorMessage(event.args.errorMsg);
+        trackError("verification_failed", event.args.errorMsg);
       }
     },
     enabled: isTransactionSentSuccessfully && !!address
@@ -186,6 +192,7 @@ export default function SendTransaction() {
     if (!address) {
       setVerificationStatus('error');
       setErrorMessage("No wallet address found");
+      trackError("no_wallet_address", "No wallet address found");
       console.error("No wallet address found");
       return;
     }
@@ -216,6 +223,8 @@ export default function SendTransaction() {
     if (paymasterCapabilities && paymasterCapabilities.paymasterService && paymasterCapabilities.paymasterService.supported) {
       try {
         setIsSendingTransaction(true);
+        trackTransactionSent("verification_with_paymaster");
+        
         const result = sendCalls({
           calls: [{
             ...functionDataObj,
@@ -230,10 +239,12 @@ export default function SendTransaction() {
       } catch (error: any) {
         setVerificationStatus('error');
         setErrorMessage(error.message);
+        trackError("paymaster_transaction_failed", error.message);
       } finally {
         setIsSendingTransaction(false);
       }
     } else {
+      trackTransactionSent("verification_standard");
       functionDataObj.address = contractAddress as `0x${string}`;
       writeContract(functionDataObj);
     }
@@ -363,6 +374,7 @@ export default function SendTransaction() {
                 )}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackGMTweet()}
               >
                 <svg
                   className={styles.icon}

@@ -10,10 +10,12 @@ import { useReadContract } from "wagmi";
 import { wagmiContractConfig } from "../../config/contractAbi";
 import { useEffect, useState } from "react";
 import SplashScreen from "../../components/ui/splash-screen/splash-screen";
+import { useTracking } from "../../hooks/useTracking";
 
 export default function Home() {
   const router = useRouter();
   const { open } = useAppKit();
+  const { trackPageVisit, trackWalletConnection } = useTracking();
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -43,6 +45,17 @@ export default function Home() {
     }
 
   }, [isRegistered, isConnected, status]);
+
+  useEffect(() => {
+    trackPageVisit("Login");
+  }, [trackPageVisit]);
+
+  useEffect(() => {
+    if (isConnected) {
+      // embeddedWalletInfo does not have a 'type' property, so pass the authProvider instead
+      trackWalletConnection(embeddedWalletInfo?.authProvider);
+    }
+  }, [isConnected, embeddedWalletInfo, trackWalletConnection]);
 
   return (
     <main className="container">
