@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import AccountButton from "../components/AccountButton";
+import SunLoader from "../components/ui/loader/loader";
 
 import { useAccount, useBalance, useReadContract } from 'wagmi';
 import { base } from "@reown/appkit/networks";
@@ -25,7 +26,7 @@ export default function Dashboard() {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
 
-  const { data: isRegistered, isFetched: isFetchedIsRegistered } = useReadContract({
+  const { data: isRegistered, isFetched: isFetchedIsRegistered, isLoading: isCheckingRegistration } = useReadContract({
     ...wagmiContractConfig,
     functionName: 'isWalletRegistered',
     args: [address as `0x${string}`],
@@ -52,7 +53,7 @@ export default function Dashboard() {
   }, []);
 
 
-  const { data: balance } = useBalance({
+  const { data: balance, isLoading: isBalanceLoading } = useBalance({
     address: address as `0x${string}`,
     token: gmTokenAddress as `0x${string}`,
   });
@@ -70,6 +71,24 @@ export default function Dashboard() {
 
   return (
     <main className="container">
+      {isCheckingRegistration && isConnected && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{ transform: 'scale(0.5)' }}>
+            <SunLoader />
+          </div>
+        </div>
+      )}
       <div className="min-h-screen w-full">
         <div className={styles.decorations}>
           <div className={styles.rainbow}>
@@ -122,9 +141,15 @@ export default function Dashboard() {
               </button>
             </div>
             <div className={styles.balanceContainer}>
-              <p className={styles.balance}>
-                {Number(balance?.value) / 1e18} {balance?.symbol}
-              </p>
+              {isBalanceLoading ? (
+                <div style={{ transform: 'scale(0.3)', transformOrigin: 'center' }}>
+                  <SunLoader />
+                </div>
+              ) : (
+                <p className={styles.balance}>
+                  {Number(balance?.value) / 1e18} {balance?.symbol}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -132,4 +157,4 @@ export default function Dashboard() {
       </div>
     </main>
   );
-} 
+}

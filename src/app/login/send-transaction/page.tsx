@@ -190,8 +190,15 @@ export default function SendTransaction() {
       return;
     }
 
+    // Prevent multiple clicks during transaction
+    if (verificationStatus === 'pending' || isSendingTransaction) {
+      return;
+    }
+
     setVerificationStatus('pending');
     setErrorMessage(null);
+    setIsSendingTransaction(false);
+    setIsTransactionSentSuccessfully(false);
 
     let functionDataObj: any;
     if (authCode && xUserID && xTweetID) {
@@ -324,23 +331,54 @@ export default function SendTransaction() {
             </div>
 
             <div className={styles.buttonContainer}>
-              <BlueButton onClick={handleSendTransaction}>SEND</BlueButton>
+              <BlueButton 
+                onClick={handleSendTransaction}
+                disabled={verificationStatus === 'pending' || isSendingTransaction}
+              >
+                {verificationStatus === 'pending' || isSendingTransaction ? 'SENDING...' : 'SEND'}
+              </BlueButton>
             </div>
           </div>
         </div>
 
         {verificationStatus === 'pending' && (
           <Modal onClose={() => { setVerificationStatus('idle') }}>
-            <div className="flex justify-center items-center" style={{ marginBottom: '50px' }}>
-              <SunLoader />
-            </div>
-            <div style={{ marginBottom: '50px' }}>
-              {isSendingTransaction && !isTransactionSentSuccessfully && (
-                <p>Sending transaction...</p>
-              )}
-              {isTransactionSentSuccessfully && (
-                <p>Transaction sent, verifying your Twitter account on smart-contract..</p>
-              )}
+            <div className={styles.modalContent}>
+              <div className="flex justify-center items-center" style={{ marginBottom: '30px' }}>
+                <SunLoader />
+              </div>
+              <div style={{ marginBottom: '30px', textAlign: 'center' }}>
+                {!isSendingTransaction && !isTransactionSentSuccessfully && (
+                  <div>
+                    <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}>
+                      Preparing Transaction...
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#666' }}>
+                      Setting up your Twitter verification request
+                    </p>
+                  </div>
+                )}
+                {(isSendingTransaction || isWritingContract || isSendingCalls) && !isTransactionSentSuccessfully && (
+                  <div>
+                    <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}>
+                      Sending Transaction...
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#666' }}>
+                      Please confirm the transaction in your wallet
+                    </p>
+                  </div>
+                )}
+                {isTransactionSentSuccessfully && (
+                  <div>
+                    <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '10px' }}>
+                      Transaction Sent! ✅
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#666' }}>
+                      Verifying your Twitter account on smart contract...
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </Modal>
         )}
@@ -434,4 +472,4 @@ export default function SendTransaction() {
       </div>
     </main >
   );
-} 
+}

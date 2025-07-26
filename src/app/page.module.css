@@ -317,6 +317,8 @@
     justify-content: center;
     backdrop-filter: blur(5px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    min-width: 44px;
+    min-height: 44px;
 }
 
 .iconButton:hover {
@@ -461,6 +463,8 @@
     .iconButton {
         padding: 5px;
         border-radius: 10px;
+        min-width: 44px;
+        min-height: 44px;
     }
 
     .iconButton svg {

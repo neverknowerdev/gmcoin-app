@@ -5,6 +5,7 @@ interface BlueButtonProps {
   onClick?: () => void;
   children: React.ReactNode;
   className?: string;
+  disabled?: boolean;
 }
 
 const ButtonBackground = () => (
@@ -96,12 +97,13 @@ const ButtonBackground = () => (
   </svg>
 );
 
-const BlueButton: React.FC<BlueButtonProps> = ({ onClick, children, className }) => {
+const BlueButton: React.FC<BlueButtonProps> = ({ onClick, children, className, disabled }) => {
   return (
     <button
-      onClick={onClick}
-      className={`${styles.blueButton} ${className || ''}`.trim()}
+      onClick={disabled ? undefined : onClick}
+      className={`${styles.blueButton} ${className || ''} ${disabled ? styles.disabled : ''}`.trim()}
       type="button"
+      disabled={disabled}
     >
       <ButtonBackground />
       <span className={styles.buttonText}>{children}</span>
