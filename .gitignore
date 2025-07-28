@@ -7,6 +7,10 @@
 .yalc
 yalc.lock
 
+.cursorrules
+./cursor 
+
+
 # testing
 /coverage
 
