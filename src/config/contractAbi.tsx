@@ -37,6 +37,13 @@ export const wagmiContractConfig = {
             stateMutability: 'view',
             inputs: [{ name: 'wallet', type: 'address' }],
             outputs: [{ name: '', type: 'bool' }],
+        },
+        {
+            type: 'function',
+            name: 'isFarcasterUserRegistered',
+            stateMutability: 'view',
+            inputs: [{ name: 'fid', type: 'string' }],
+            outputs: [{ name: '', type: 'bool' }],
         }
     ],
 } as const

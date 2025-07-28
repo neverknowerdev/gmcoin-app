@@ -12,6 +12,7 @@ import styles from "./page.module.css";
 import { disconnect } from "node:process";
 import { wagmiContractConfig } from "../config/contractAbi";
 import { CONTRACT_ADDRESS } from "../config/contracts";
+import { fetchFarcasterPrimaryAddress } from "../utils/farcasterApi";
 
 
 export default function Dashboard() {
@@ -20,7 +21,10 @@ export default function Dashboard() {
   const gmTokenAddress = CONTRACT_ADDRESS;
 
   const [twitterName, setTwitterName] = useState<string | null>(null);
-
+  const [authMethod, setAuthMethod] = useState<string | null>(null);
+  const [farcasterFid, setFarcasterFid] = useState<string | null>(null);
+  const [farcasterAddress, setFarcasterAddress] = useState<string | null>(null);
+  const [isReadOnlyMode, setIsReadOnlyMode] = useState(false);
 
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
@@ -30,19 +34,40 @@ export default function Dashboard() {
     functionName: 'isWalletRegistered',
     args: [address as `0x${string}`],
     query: {
-      enabled: isConnected,
+      enabled: isConnected && authMethod === 'wallet',
     }
   });
 
+  const effectiveAddress = authMethod === 'farcaster' ? farcasterAddress : address;
+
+  // Load authentication method and Farcaster data on mount
+  useEffect(() => {
+    const storedAuthMethod = localStorage.getItem('authMethod');
+    const storedFarcasterFid = localStorage.getItem('farcasterFid');
+    const storedFarcasterAddress = localStorage.getItem('farcasterAddress');
+    
+    setAuthMethod(storedAuthMethod);
+    setFarcasterFid(storedFarcasterFid);
+    setFarcasterAddress(storedFarcasterAddress);
+    
+    // Set read-only mode for Farcaster users
+    if (storedAuthMethod === 'farcaster') {
+      setIsReadOnlyMode(true);
+    }
+  }, []);
+
   useEffect(() => {
     const checkUser = async () => {
-      if (isFetchedIsRegistered && !isRegistered) {
+      // Only check wallet registration if using wallet auth
+      if (authMethod === 'wallet' && isFetchedIsRegistered && !isRegistered) {
         await disconnect();
         router.push("/login");
       }
+      
+      // For Farcaster users, no registration check needed as it was done in login
     }
     checkUser();
-  }, [isRegistered, isFetchedIsRegistered]);
+  }, [isRegistered, isFetchedIsRegistered, authMethod]);
 
   useEffect(() => {
     const twitterName = localStorage.getItem("xUsername");
@@ -53,8 +78,11 @@ export default function Dashboard() {
 
 
   const { data: balance } = useBalance({
-    address: address as `0x${string}`,
+    address: effectiveAddress as `0x${string}`,
     token: gmTokenAddress as `0x${string}`,
+    query: {
+      enabled: !!effectiveAddress,
+    }
   });
 
   const formatAddress = (address: string) => {
@@ -64,6 +92,16 @@ export default function Dashboard() {
   };
 
   const onDisconnect = () => {
+    // Clear all stored data
+    localStorage.removeItem('authMethod');
+    localStorage.removeItem('farcasterFid');
+    localStorage.removeItem('farcasterAddress');
+    localStorage.removeItem('xUsername');
+    localStorage.removeItem('xUserID');
+    localStorage.removeItem('xTweetID');
+    localStorage.removeItem('encryptedAccessToken');
+    localStorage.removeItem('authCode');
+    
     disconnect();
     router.push("/login");
   };
@@ -97,10 +135,10 @@ export default function Dashboard() {
 
           <div className={styles.cloude}>
             <p className={styles.username}>
-              {twitterName}
+              {authMethod === 'farcaster' ? `Farcaster User (FID: ${farcasterFid})` : twitterName}
             </p>
             <div className={styles.addressContainer}>
-              <p>{formatAddress(address as string)}</p>
+              <p>{formatAddress(effectiveAddress as string)}</p>
               <button
                 className={`${styles.iconButton} ${styles.disconnectButton}`}
                 onClick={onDisconnect}
@@ -125,6 +163,26 @@ export default function Dashboard() {
               <p className={styles.balance}>
                 {Number(balance?.value) / 1e18} {balance?.symbol}
               </p>
+              {isReadOnlyMode && (
+                <div style={{
+                  marginTop: '10px',
+                  padding: '8px 12px',
+                  backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  color: '#856404'
+                }}>
+                  ⚠️ Read-only mode. For transactions, use{' '}
+                  <a 
+                    href={`https://warpcast.com/~/developers/mini-apps/preview?url=${encodeURIComponent(window.location.origin)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#8B5CF6', textDecoration: 'underline' }}
+                  >
+                    Farcaster Mini-App
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
