@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import AppKitProvider from "../context/appKitProvider";
 import { wagmiAdapter } from "../config/wagmi";
 import { cookieToInitialState } from "wagmi";
+import Analytics from "../components/Analytics";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -36,6 +37,10 @@ export default async function RootLayout({
         />
       </head>
       <body className={inter.className}>
+        <Analytics 
+          gaId={process.env.GA_MEASUREMENT_ID}
+          hotjarId={process.env.HOTJAR_ID}
+        />
         <AppKitProvider initialState={initialState}>{children}</AppKitProvider>
       </body>
     </html>
